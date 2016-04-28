@@ -1,22 +1,10 @@
-/*
-@license
-Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
-*/
-
-(function(document) {
+import CompilationService from './compilationservice';
+((document) => {
   'use strict';
+  const compilationService = new CompilationService();
 
-  // Grab a reference to our auto-binding template
-  // and give it some initial binding values
-  // Learn more about auto-binding templates at http://goo.gl/Dx1u2g
   var app = document.querySelector('#app');
-  
-  // Sets app default base URL
+
   app.baseUrl = '/';
   if (window.location.port === '') {  // if production
     // Uncomment app.baseURL below and
@@ -24,59 +12,92 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // app.baseUrl = '/polymer-starter-kit/';
   }
 
-  app.displayInstalledToast = function() {
+  app.displayInstalledToast = () => {
     // Check to make sure caching is actually enabled—it won't be in the dev environment.
     if (!Polymer.dom(document).querySelector('platinum-sw-cache').disabled) {
       Polymer.dom(document).querySelector('#caching-complete').show();
     }
   };
 
-  // Listen for template bound event to know when bindings
-  // have resolved and content has been stamped to the page
-  app.addEventListener('dom-change', function() {
-    console.log('Our app is ready to rock!');
-  });
-  
-  // See https://github.com/Polymer/polymer/issues/1381
-  window.addEventListener('WebComponentsReady', function() {
-    // imports are loaded and elements have been registered
+  // Listen for template bound event to know when bindings have resolved and
+  // content has been stamped to the page
+  app.addEventListener('dom-change', () => {
   });
 
-  // Main area's paper-scroll-header-panel custom condensing transformation of
-  // the appName in the middle-container and the bottom title in the bottom-container.
-  // The appName is moved to top and shrunk on condensing. The bottom sub title
-  // is shrunk to nothing on condensing.
-  window.addEventListener('paper-header-transform', function(e) {
-    var appName = Polymer.dom(document).querySelector('#mainToolbar .app-name');
-    var middleContainer = Polymer.dom(document).querySelector('#mainToolbar .middle-container');
-    var bottomContainer = Polymer.dom(document).querySelector('#mainToolbar .bottom-container');
-    var detail = e.detail;
-    var heightDiff = detail.height - detail.condensedHeight;
-    var yRatio = Math.min(1, detail.y / heightDiff);
-    // appName max size when condensed. The smaller the number the smaller the condensed size.
-    var maxMiddleScale = 0.50;
-    var auxHeight = heightDiff - detail.y;
-    var auxScale = heightDiff / (1 - maxMiddleScale);
-    var scaleMiddle = Math.max(maxMiddleScale, auxHeight / auxScale + maxMiddleScale);
-    var scaleBottom = 1 - yRatio;
-
-    // Move/translate middleContainer
-    Polymer.Base.transform('translate3d(0,' + yRatio * 100 + '%,0)', middleContainer);
-
-    // Scale bottomContainer and bottom sub title to nothing and back
-    Polymer.Base.transform('scale(' + scaleBottom + ') translateZ(0)', bottomContainer);
-
-    // Scale middleContainer appName
-    Polymer.Base.transform('scale(' + scaleMiddle + ') translateZ(0)', appName);
-  });
-
-  // Scroll page to top and expand header
-  app.scrollPageToTop = function() {
-    app.$.headerPanelMain.scrollToTop(true);
+  app.filename = 'Untitled';
+  app.isCompiling = false;
+  app.codeMirrorOptions = {
+    mode: 'stex',
+    lineWrapping: true,
+    lineNumbers: true
   };
 
-  app.closeDrawer = function() {
-    app.$.paperDrawerPanel.closeDrawer();
+  window.addEventListener('WebComponentsReady', () => {
+    var generatePreviewButton = Polymer.dom(document).querySelector('#generatePreviewButton');
+    var compileProgress = Polymer.dom(document).querySelector('#compileProgress');
+    var editor = Polymer.dom(document).querySelector('#editor');
+    var previewIFrame = Polymer.dom(document).querySelector('#previewIFrame');
+    generatePreviewButton.addEventListener('click', e => {
+      var startTime = new Date();
+      console.log('Started compilation at ' + startTime);
+      app.isCompiling = true;
+
+      // workaround for PDFTeX not using promises correctly
+      var outputListener = msg => {
+        console.log(msg);
+        var errorRE = /Fatal error occurred, no output PDF file produced!$/;
+        if (errorRE.test(msg)) {
+          var endTime = new Date();
+          console.error(msg);
+          app.compilationError = msg;
+          app.isCompiling = false;
+          console.log('Finished compilation at ' + endTime);
+          console.log('Execution time: ' + (endTime - startTime) + 'ms');
+        }
+      };
+
+      compilationService.compile(editor.getValue(), outputListener)
+        .then(pdfDataUrl => {
+          // workaround for PDFTeX not using promises correctly
+          console.log(pdfDataUrl);
+          if (!pdfDataUrl) {
+            throw new Error('No PDF data URL');
+          }
+          var endTime = new Date();
+          app.isCompiling = false;
+
+          console.log('Finished compilation at ' + endTime);
+          console.log('Execution time: ' + (endTime - startTime) + 'ms');
+          if (pdfDataUrl) {
+            previewIFrame.setAttribute('src', pdfDataUrl);
+          } else {
+            previewIFrame.setAttribute('src', 'about:blank');
+          }
+          compileProgress.style.display = 'none';
+        }).catch(e => {
+          console.error(e);
+          app.compilationError = e.message;
+          app.isCompiling = false;
+        });
+    });
+  });
+
+  var drawerPanel = Polymer.dom(document).querySelector('#drawerPanel');
+  document.addEventListener('keydown', e => {
+    if (e.keyCode == 83 && (navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey)) {
+      e.preventDefault();
+      drawerPanel.closeDrawer();
+      saveAction();
+    }
+  });
+
+  // used by #helloWorldItem
+  app.doHelloWorld = () => {
+    if (editor.getValue() && !confirm("Do you really want to discard your changes?")) {
+      return;
+    }
+    editor.setValue('\\documentclass{article}\n\n\\begin{document}\nHello, world!\n\\end{document}');
+    drawerPanel.closeDrawer();
   };
 
 })(document);

@@ -53,12 +53,19 @@ var DIST = 'dist';
 
 var dist = subpath => !subpath ? DIST : path.join(DIST, subpath);
 
+var plumberErrorHandler = function (e) {
+  console.log(e);
+  this.emit('end');
+};
+
 var styleTask = (stylesPath, srcs) => {
   return gulp.src(srcs.map(src => path.join('app', stylesPath, src)))
+    .pipe($.plumber(plumberErrorHandler))
     .pipe($.changed(stylesPath, {extension: '.css'}))
     .pipe($.autoprefixer(AUTOPREFIXER_BROWSERS))
     .pipe(gulp.dest('.tmp/' + stylesPath))
     .pipe($.minifyCss())
+    .pipe($.plumber.stop())
     .pipe(gulp.dest(dist(stylesPath)))
     .pipe($.size({title: stylesPath}));
 };
@@ -275,7 +282,17 @@ gulp.task('serve', ['styles', 'js'], () => {
     // https: true,
     server: {
       baseDir: ['.tmp', 'app'],
-      middleware: [historyApiFallback()]
+      middleware: [
+        historyApiFallback({
+          // workaround for pdftex-worker.js for requests like texmf-dist/ls-R
+          rewrites: [
+            {
+              from: /^\/bower_components\/.*$/,
+              to: context => context.parsedUrl.pathname
+            }
+          ]
+        })
+      ]
     }
   });
 

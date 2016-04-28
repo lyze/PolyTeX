@@ -1,0 +1,99 @@
+<!-- David Xu, 2016 -->
+
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+<link rel="import" href="../../bower_components/paper-styles/typography.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout.html">
+
+
+<!--
+
+Custom property | Description | Default
+---------------------------------------
+`--gtex-code-textarea
+-->
+<dom-module id="gtex-code-textarea">
+  <style include="iron-flex iron-flex-alignment iron-positioning"></style>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/codemirror.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/codemirror.min.css">
+  <template>
+    <style>
+      :host {
+        --iron-autogrow-textarea {
+          @apply(--paper-font-common-code);
+          @apply(--gtex-code-textarea)
+        }
+      }
+      #container {
+        height:100%;
+      }
+      .CodeMirror {
+        height: 100%;
+        z-index: 0;
+      }
+    </style>
+    <!-- CodeMirror does not play nice with flexboxes :( -->
+    <paper-material id="container" elevation="{{elevation}}" animated="{{animated}}" class="flex vertical layout">
+      <div class="flex horizontal layout">
+        <iron-autogrow-textarea id="ironTextArea" class="flex" max-rows=0></iron-autogrow-textarea>
+      </div>
+    </paper-material>
+  </template>
+  <script>
+    Polymer({
+      is: 'gtex-code-textarea',
+      properties: {
+        animated: Boolean,
+        elevation: Number,
+        editorOptions: {
+          type: Object,
+          observer: '_setCodeMirrorOptions',
+        },
+        codeMirror: {
+          type: Object,
+          readOnly: true
+        }
+      },
+
+      factoryImpl: function (editorOptions) {
+        this.editorOptions = editorOptions;
+      },
+
+      ready: function () {
+        this.scopeSubtree(this.$.ironTextArea.$.textarea.parentNode, true);
+        // The editor is messed up if CodeMirror is initialized with options immediately.
+        // this._setCodeMirror(CodeMirror.fromTextArea(this.$.ironTextArea.$.textarea, this.editorOptions));
+        this._setCodeMirror(CodeMirror.fromTextArea(this.$.ironTextArea.$.textarea));
+        this._setCodeMirrorOptions(this.editorOptions);
+      },
+
+      _setCodeMirrorOptions: function (newOptions) {
+        if (this.codeMirror === undefined) {
+          this.editorOptions = newOptions;
+        } else {
+          for (let k of Object.keys(newOptions)) {
+            this.codeMirror.setOption(k, newOptions[k]);
+          }
+        }
+      },
+
+      // Getters and setters because CodeMirror's change event is efficient for
+      // its own uses but makes it not so easy and not so efficient to implement
+      // two-way binding
+      getValue: function () {
+        if (this.codeMirror === undefined) {
+          return '';
+        }
+        return this.codeMirror.getValue();
+      },
+
+      setValue: function (v) {
+        if (this.codeMirror === undefined) {
+          this.value = v;
+        } else {
+          this.codeMirror.setValue(v);
+        }
+      }
+    });
+  </script>
+</dom-module>
