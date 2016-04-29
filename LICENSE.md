@@ -1,6 +1,7 @@
 # License
 
-Everything in this repo is BSD style license unless otherwise specified.
+Copyright David Xu, 2016. Anything that does not have my copyright on it is BSD
+style licensed.
 
 Copyright (c) 2015 The Polymer Authors. All rights reserved.
 
