@@ -32,25 +32,34 @@ import CompilationService from './compilationservice';
     lineNumbers: true
   };
 
+
+
   window.addEventListener('WebComponentsReady', () => {
     var generatePreviewButton = Polymer.dom(document).querySelector('#generatePreviewButton');
     var compileProgress = Polymer.dom(document).querySelector('#compileProgress');
     var editor = Polymer.dom(document).querySelector('#editor');
     var previewIFrame = Polymer.dom(document).querySelector('#previewIFrame');
+    var compileLog = Polymer.dom(document).querySelector('#compileLog');
     generatePreviewButton.addEventListener('click', e => {
       var startTime = new Date();
-      console.log('Started compilation at ' + startTime);
       app.isCompiling = true;
+      app.compileStatus = 'in-progress';
+      console.log('Started compilation at ' + startTime);
 
-      // workaround for PDFTeX not using promises correctly
+      compileLog.value = '';
       var outputListener = msg => {
-        console.log(msg);
+        // Is this actually performant?
+        if (msg !== undefined && msg !== null) {
+          compileLog.value += msg + '\n';
+        }
+        // workaround for PDFTeX not using promises correctly
         var errorRE = /Fatal error occurred, no output PDF file produced!$/;
         if (errorRE.test(msg)) {
           var endTime = new Date();
           console.error(msg);
           app.compilationError = msg;
           app.isCompiling = false;
+          app.compileStatus = 'error';
           console.log('Finished compilation at ' + endTime);
           console.log('Execution time: ' + (endTime - startTime) + 'ms');
         }
@@ -61,6 +70,7 @@ import CompilationService from './compilationservice';
           // workaround for PDFTeX not using promises correctly
           console.log(pdfDataUrl);
           if (!pdfDataUrl) {
+            app.compileStatus = 'error';
             throw new Error('No PDF data URL');
           }
           var endTime = new Date();
@@ -70,34 +80,36 @@ import CompilationService from './compilationservice';
           console.log('Execution time: ' + (endTime - startTime) + 'ms');
           if (pdfDataUrl) {
             previewIFrame.setAttribute('src', pdfDataUrl);
+            app.compileStatus = 'ok';
           } else {
             previewIFrame.setAttribute('src', 'about:blank');
+            app.compileStatus = 'error';
           }
           compileProgress.style.display = 'none';
         }).catch(e => {
           console.error(e);
           app.compilationError = e.message;
           app.isCompiling = false;
+          app.compileStatus = 'error';
         });
     });
-  });
 
-  var drawerPanel = Polymer.dom(document).querySelector('#drawerPanel');
-  document.addEventListener('keydown', e => {
-    if (e.keyCode == 83 && (navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey)) {
-      e.preventDefault();
+    var drawerPanel = Polymer.dom(document).querySelector('#drawerPanel');
+    document.addEventListener('keydown', e => {
+      if (e.keyCode == 83 && (navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey)) {
+        e.preventDefault();
+        drawerPanel.closeDrawer();
+        saveAction();
+      }
+    });
+
+    // used by #helloWorldItem
+    app.doHelloWorld = () => {
+      if (editor.getValue() && !confirm("Do you really want to discard your changes?")) {
+        return;
+      }
+      editor.setValue('\\documentclass{article}\n\n\\begin{document}\nHello, world!\n\\end{document}');
       drawerPanel.closeDrawer();
-      saveAction();
-    }
+    };
   });
-
-  // used by #helloWorldItem
-  app.doHelloWorld = () => {
-    if (editor.getValue() && !confirm("Do you really want to discard your changes?")) {
-      return;
-    }
-    editor.setValue('\\documentclass{article}\n\n\\begin{document}\nHello, world!\n\\end{document}');
-    drawerPanel.closeDrawer();
-  };
-
 })(document);

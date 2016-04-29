@@ -71,7 +71,7 @@
 
         <paper-header-panel drawer>
           <paper-toolbar id="navheader">
-            <span>Menu</span>
+            <span class="title">Actions</span>
           </paper-toolbar>
           <paper-menu>
             <paper-item id="loadItem" on-tap="doLoad">Load</paper-item>
@@ -85,7 +85,16 @@
 
           <paper-toolbar id="mainToolbar">
             <paper-icon-button icon="menu" paper-drawer-toggle></paper-icon-button>
-            <span class="flex">{{filename}}</span>
+            <span class="title">{{filename}}</span>
+            <iron-pages attr-for-selected="status" selected="{{compileStatus}}" fallback-selection="default">
+              <paper-icon-button status="default" icon="description" on-tap="showLog"></paper-icon-button>
+              <paper-icon-button status="in-progress" icon="info-outline" on-tap="showLog"></paper-icon-button>
+              <paper-icon-button status="in-progress-warning" icon="error-outline" on-tap="showLog"></paper-icon-button>
+              <paper-icon-button status="in-progress-error" icon="error-outline" on-tap="showLog"></paper-icon-button>
+              <paper-icon-button status="ok" icon="info" on-tap="showLog"></paper-icon-button>
+              <paper-icon-button status="warning" icon="warning" on-tap="show-log"></paper-icon-button>
+              <paper-icon-button status="error" icon="error" on-tap="show-log"></paper-icon-button>
+            </iron-pages>
           </paper-toolbar>
 
           <div id="mainContent" class="fit vertical layout">
@@ -96,6 +105,10 @@
               <div id="preview" class="flex vertical layout">
                 <paper-progress indeterminate id="compileProgress" style="width: inherit" hidden$="[[!isCompiling]]"></paper-progress>
                 <iframe id="previewIFrame" src="about:blank" class="flex center"></iframe>
+                <!-- TODO -->
+                <paper-material elevation="2" animated="true" class="flex vertical layout" hidden>
+                  <iron-autogrow-textarea id="compileLog" class="flex" max-rows="0"></iron-autogrow-textarea>
+                </paper-material>
               </div>
             </div>
           </div>
