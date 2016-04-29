@@ -92,30 +92,32 @@
               <paper-icon-button status="in-progress-warning" icon="error-outline" on-tap="showLog"></paper-icon-button>
               <paper-icon-button status="in-progress-error" icon="error-outline" on-tap="showLog"></paper-icon-button>
               <paper-icon-button status="ok" icon="info" on-tap="showLog"></paper-icon-button>
-              <paper-icon-button status="warning" icon="warning" on-tap="show-log"></paper-icon-button>
-              <paper-icon-button status="error" icon="error" on-tap="show-log"></paper-icon-button>
+              <paper-icon-button status="warning" icon="warning" on-tap="showLog"></paper-icon-button>
+              <paper-icon-button status="error" icon="error" on-tap="showLog"></paper-icon-button>
             </iron-pages>
           </paper-toolbar>
 
           <div id="mainContent" class="fit vertical layout">
             <div id="contentArea" class="flex horizontal layout">
-              <gtex-code-textarea id="editor" class="flex" editor-options="[[codeMirrorOptions]]"></gtex-code-textarea>
+              <gtex-code-textarea id="editor" class="flex" editor-options="[[codeMirrorOptions]]" animated="true"></gtex-code-textarea>
 
               <!-- TODO: Refactor this out -->
               <div id="preview" class="flex vertical layout">
                 <paper-progress indeterminate id="compileProgress" style="width: inherit" hidden$="[[!isCompiling]]"></paper-progress>
                 <iframe id="previewIFrame" src="about:blank" class="flex center"></iframe>
                 <!-- TODO -->
-                <paper-material elevation="2" animated="true" class="flex vertical layout" hidden>
-                  <iron-autogrow-textarea id="compileLog" class="flex" max-rows="0"></iron-autogrow-textarea>
-                </paper-material>
+                <paper-dialog id="compileLog">
+                  <h2>Compile log</h2>
+                  <div class="flex horizontal layout">
+                    <iron-autogrow-textarea id="compileLogTextArea" class="flex" max-rows="0"></iron-autogrow-textarea>
+                    </div>
+                </paper-dialog>
               </div>
             </div>
           </div>
           <paper-fab id="generatePreviewButton" icon="arrow-forward"></paper-fab>
 
-          <paper-toast id="compileProblemToast" opened$="[[compilationError]]" text="[[compilationError]]"
-                       duration="0" role="alert"></paper-toast>
+          <paper-toast id="compileProblemToast" text="[[compilationError]]" role="alert"></paper-toast>
         </paper-header-panel>
       </paper-drawer-panel>
 

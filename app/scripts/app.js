@@ -32,25 +32,37 @@ import CompilationService from './compilationservice';
     lineNumbers: true
   };
 
-
-
   window.addEventListener('WebComponentsReady', () => {
     var generatePreviewButton = Polymer.dom(document).querySelector('#generatePreviewButton');
     var compileProgress = Polymer.dom(document).querySelector('#compileProgress');
     var editor = Polymer.dom(document).querySelector('#editor');
     var previewIFrame = Polymer.dom(document).querySelector('#previewIFrame');
+    var preview = Polymer.dom(document).querySelector('#preview');
+    var compileProblemToast = Polymer.dom(document).querySelector('#compileProblemToast');
     var compileLog = Polymer.dom(document).querySelector('#compileLog');
+    var compileLogTextArea = Polymer.dom(document).querySelector('#compileLogTextArea');
+
+    compileLog.fitInto = preview;
+
+    app.showLog = e => {
+      compileLog.toggle();
+    };
+
     generatePreviewButton.addEventListener('click', e => {
       var startTime = new Date();
       app.isCompiling = true;
+      if (app.compileStatus === 'in-progress') {
+        return;
+      }
       app.compileStatus = 'in-progress';
       console.log('Started compilation at ' + startTime);
 
-      compileLog.value = '';
+      compileLogTextArea.value = '';
       var outputListener = msg => {
+        // console.log(msg);
         // Is this actually performant?
         if (msg !== undefined && msg !== null) {
-          compileLog.value += msg + '\n';
+          compileLogTextArea.value += msg + '\n';
         }
         // workaround for PDFTeX not using promises correctly
         var errorRE = /Fatal error occurred, no output PDF file produced!$/;
@@ -58,6 +70,7 @@ import CompilationService from './compilationservice';
           var endTime = new Date();
           console.error(msg);
           app.compilationError = msg;
+          compileProblemToast.open();
           app.isCompiling = false;
           app.compileStatus = 'error';
           console.log('Finished compilation at ' + endTime);
@@ -87,8 +100,10 @@ import CompilationService from './compilationservice';
           }
           compileProgress.style.display = 'none';
         }).catch(e => {
+          // TODO: refactor this out
           console.error(e);
           app.compilationError = e.message;
+          compileProblemToast.open();
           app.isCompiling = false;
           app.compileStatus = 'error';
         });
@@ -112,4 +127,5 @@ import CompilationService from './compilationservice';
       drawerPanel.closeDrawer();
     };
   });
+
 })(document);

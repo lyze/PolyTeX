@@ -44,10 +44,12 @@ export default class CompilationService {
    * @return a promise that resolves to a PDF data URL
    */
   compile(source, outputAppender) {
+    this.pdftex.worker.terminate();
+    this.pdftex = new PDFTeX('bower_components/texlivejs/pdftex-worker.js');
     var p = this.pdftex.set_TOTAL_MEMORY(80 * 1024 * 1024);
     return p.then(() => {
       this.pdftex.on_stdout = outputAppender;
-      this.pdftex.on_stderr = outputAppender
+      this.pdftex.on_stderr = outputAppender;
       return this.pdftex.compile(source);
     });
   }
