@@ -19,3 +19,7 @@ body {
   left: 50%;
   right: 0;
 }
+
+#compileLogTextArea {
+  border: none;
+}

@@ -78,7 +78,13 @@
             <paper-item id="saveItem" on-tap="doSave">Save</paper-item>
             <hr>
             <paper-item id="helloWorldItem" on-tap="doHelloWorld">Hello, world!</paper-item>
-          </paper-menu>
+          <!--   <hr> -->
+          <!--   <google-signin width="wide" height="tall" -->
+          <!--                  client-id="707726290441-2t740vcema93b7jad2acqiku87qe25s6.apps.googleusercontent.com" -->
+          <!--                  scopes="https://www.googleapis.com/auth/drive.install https://www.googleapis.com/auth/drive.file" -->
+          <!--                  on-google-signin-success="start" -->
+          <!--                  signed-in="{{signedIn}}"></google-signin> -->
+          <!-- </paper-menu> -->
         </paper-header-panel>
 
         <paper-header-panel main id="mainHeaderPanel">
@@ -118,10 +124,12 @@
           <paper-fab id="generatePreviewButton" icon="arrow-forward"></paper-fab>
 
           <paper-toast id="compileProblemToast" text="[[compilationError]]" role="alert"></paper-toast>
+          <button id="auth_button">Authorize</button>
         </paper-header-panel>
       </paper-drawer-panel>
 
-      <google-client-loader id="driveApi" name="drive" version="v2"></google-client-loader>
+      <!-- TODO: Improve UX for authorizing Google services -->
+      <paper-toast id="authProblemToast" text="Failed to authorize Google services." role="alert"></paper-toast>
     </template>
 
     <!-- build:js scripts/app.js -->
@@ -129,6 +137,8 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/es6-promise/3.2.1/es6-promise.min.js"></script>
     <script src="bower_components/texlivejs/pdftex.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/mode/stex/stex.js"></script>
+    <script src="//apis.google.com/js/api.js"></script>
+    <script src="scripts/realtime-client-utils.js"></script>
     <script src="scripts/app.js"></script>
     <!-- endbuild -->
   </body>
