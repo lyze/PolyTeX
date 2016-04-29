@@ -30,7 +30,6 @@ var historyApiFallback = require('connect-history-api-fallback');
 var packageJson = require('./package.json');
 var crypto = require('crypto');
 var ensureFiles = require('./tasks/ensure-files.js');
-// var ghPages = require('gulp-gh-pages');
 
 var rollup = require('rollup').rollup;
 var babel = require('rollup-plugin-babel');
@@ -58,19 +57,19 @@ var plumberErrorHandler = function (e) {
   this.emit('end');
 };
 
-var styleTask = (stylesPath, srcs) => {
-  return gulp.src(srcs.map(src => path.join('app', stylesPath, src)))
+var optimizeStyleTask = (src, buildDest, distDest) => {
+  return gulp.src(src)
     .pipe($.plumber(plumberErrorHandler))
-    .pipe($.changed(stylesPath, {extension: '.css'}))
+    .pipe($.changed(buildDest, {extension: '.css'}))
     .pipe($.autoprefixer(AUTOPREFIXER_BROWSERS))
-    .pipe(gulp.dest('.tmp/' + stylesPath))
     .pipe($.minifyCss())
     .pipe($.plumber.stop())
-    .pipe(gulp.dest(dist(stylesPath)))
-    .pipe($.size({title: stylesPath}));
+    .pipe(gulp.dest(buildDest))
+    .pipe(gulp.dest(distDest))
+    .pipe($.size({title: 'css'}));
 };
 
-var imageOptimizeTask = (src, dest) => {
+var optimizeImageTask = (src, dest) => {
   return gulp.src(src)
     .pipe($.imagemin({
       progressive: true,
@@ -99,30 +98,25 @@ var optimizeHtmlTask = (src, dest) => {
       empty: true,
       spare: true
     })))
-    // Output files
     .pipe(gulp.dest(dest))
     .pipe($.size({
       title: 'html'
     }));
 };
 
-// Compile and automatically prefix stylesheets
-gulp.task('styles', () => {
-  return styleTask('styles', ['**/*.css']);
-});
-
-// Ensure that we are not missing required files for the project
-// "dot" files are specifically tricky due to them being hidden on
-// some systems.
+// Ensure that we are not missing required files for the project "dot" files are
+// specifically tricky due to them being hidden on some systems.
 gulp.task('ensureFiles', cb => {
   var requiredFiles = ['.bowerrc'];
-
   ensureFiles(requiredFiles.map(p => path.join(__dirname, p)), cb);
 });
 
-// Optimize images
+gulp.task('styles', () => {
+  return optimizeStyleTask('app/styles/**/*.css', 'build/styles', dist('styles'));
+});
+
 gulp.task('images', () => {
-  return imageOptimizeTask('app/images/**/*', dist('images'));
+  return optimizeImageTask('app/images/**/*', dist('images'));
 });
 
 // Copy all files at the root level (app)
@@ -141,7 +135,7 @@ gulp.task('copy', () => {
   // Copy over only the bower_components we need
   // These are things which cannot be vulcanized
   var bower = gulp.src([
-    'app/bower_components/{webcomponentsjs,platinum-sw,sw-toolbox,promise-polyfill}/**/*'
+    'app/bower_components/{webcomponentsjs,platinum-sw,sw-toolbox,promise-polyfill,texlivejs}/**/*'
   ]).pipe(gulp.dest(dist('bower_components')));
 
   return merge(app, bower)
@@ -161,35 +155,26 @@ gulp.task('rollup', () => {
         // externalHelpers: true
       })
     ]
-  })
-    .then(bundle => {
-      bundle.write({
+  }).then(bundle => {
+    bundle.write({
         sourceMap: true,
-        dest: dist('scripts/app.js')
-      });
-      bundle.write({
-        sourceMap: true,
-        dest: '.tmp/scripts/app.js'
+        dest: 'build/scripts/app.js'
       });
     });
 });
 
-// Transpile all JS to ES5.
 gulp.task('js', ['rollup'], () => {
   return gulp.src(['app/**/*.html', '!app/bower_components/**'])
     .pipe($.sourcemaps.init())
     .pipe($.if('*.html', $.crisper({scriptInHead: false}))) // Extract JS from .html files
-    // .pipe($.if('*.js', $.babel({
-    //   presets: ['es2015']
-    // })))
     .pipe($.sourcemaps.write('.'))
-    .pipe(gulp.dest('.tmp/'))
+    .pipe(gulp.dest('build'))
     .pipe(gulp.dest(dist()));
 });
 
 // Copy web fonts to dist
 gulp.task('fonts', () => {
-  return gulp.src(['app/fonts/**'])
+  return gulp.src(['app/fonts/**/*'])
     .pipe(gulp.dest(dist('fonts')))
     .pipe($.size({
       title: 'fonts'
@@ -197,21 +182,23 @@ gulp.task('fonts', () => {
 });
 
 // Scan your HTML for assets & optimize them
-gulp.task('html', () => {
+gulp.task('html', ['styles'], () => {
   return optimizeHtmlTask(
-    [dist('/**/*.html'), '!' + dist('/{elements,test,bower_components}/**/*.html')],
+    ['build/**/*.html',
+     '!' + dist('{elements,test,bower_components}/**/*.html')],
     dist());
 });
 
 // Copy all bower_components over to help js task and vulcanize work together
-gulp.task('bowertotmp', () => {
-  return gulp.src(['app/bower_components/**/*'])
-    .pipe(gulp.dest('.tmp/bower_components/'));
+gulp.task('bower_components', () => {
+  return gulp.src('app/bower_components/**/*')
+    .pipe($.changed('build/bower_components/'))
+    .pipe(gulp.dest('build/bower_components/'));
 });
 
-// Vulcanize granular configuration
-gulp.task('vulcanize', () => {
-  return gulp.src('.tmp/elements/elements.html')
+// Vulcanize granular configuration.
+gulp.task('vulcanize', ['bower_components'], () => {
+  return gulp.src('build/elements/elements.html')
     .pipe($.vulcanize({
       stripComments: true,
       inlineCss: true,
@@ -259,7 +246,7 @@ gulp.task('cache-config', callback => {
 
 // Clean output directory
 gulp.task('clean', () => {
-  return del(['.tmp', dist()]);
+  return del(['build', dist()]);
 });
 
 // Watch files for changes & reload
@@ -267,7 +254,7 @@ gulp.task('serve', ['styles', 'js'], () => {
   browserSync({
     port: 5000,
     notify: false,
-    logPrefix: 'gTeX',
+    logPrefix: 'PolyTeX',
     snippetOptions: {
       rule: {
         match: '<span id="browser-sync-binding"></span>',
@@ -281,16 +268,14 @@ gulp.task('serve', ['styles', 'js'], () => {
     //       will present a certificate warning in the browser.
     // https: true,
     server: {
-      baseDir: ['.tmp', 'app'],
+      baseDir: ['build', 'app'],
       middleware: [
         historyApiFallback({
           // workaround for pdftex-worker.js for requests like texmf-dist/ls-R
-          rewrites: [
-            {
+          rewrites: [{
               from: /^\/bower_components\/.*$/,
               to: context => context.parsedUrl.pathname
-            }
-          ]
+          }]
         })
       ]
     }
@@ -303,11 +288,11 @@ gulp.task('serve', ['styles', 'js'], () => {
 });
 
 // Build and serve the output from the dist build
-gulp.task('serve:dist', ['default'], () => {
+gulp.task('serve-dist', ['dist'], () => {
   browserSync({
     port: 5001,
     notify: false,
-    logPrefix: 'PSK',
+    logPrefix: 'PolyTeX',
     snippetOptions: {
       rule: {
         match: '<span id="browser-sync-binding"></span>',
@@ -320,22 +305,37 @@ gulp.task('serve:dist', ['default'], () => {
     // Note: this uses an unsigned certificate which on first access
     //       will present a certificate warning in the browser.
     // https: true,
-    server: dist(),
-    middleware: [historyApiFallback()]
-  });
+    server: {
+      baseDir: [dist()],
+      middleware: [
+        historyApiFallback({
+          // workaround for pdftex-worker.js for requests like texmf-dist/ls-R
+          rewrites: [{
+            from: /^\/bower_components\/.*$/,
+            to: context => context.parsedUrl.pathname
+          }]
+        })
+      ]
+    }
+  })
+  gulp.watch(['app/**/*', '!app/bower_components/**/*'], ['dist', reload]);
 });
 
-// Build production files, the default task
-gulp.task('default', ['clean'], cb => {
+
+gulp.task('dist', cb => {
   // Uncomment 'cache-config' if you are going to use service workers.
   runSequence(
-    'bowertotmp',
+    'bower_components',
     ['ensureFiles', 'copy', 'styles'],
     'js',
     ['images', 'fonts', 'html'],
-    'vulcanize', // 'cache-config',
+    'vulcanize',
+    // 'cache-config',
     cb);
 });
+
+// Build production files, the default task
+gulp.task('default', cb => runSequence('clean', 'dist', cb));
 
 // Build then deploy to GitHub pages gh-pages branch
 gulp.task('build-deploy-gh-pages', cb => {
@@ -351,7 +351,7 @@ gulp.task('deploy-gh-pages', () => {
     // Check if running task from Travis CI, if so run using GH_TOKEN
     // otherwise run using ghPages defaults.
     .pipe($.if(process.env.TRAVIS === 'true', $.ghPages({
-      remoteUrl: 'https://$GH_TOKEN@github.com/PolymerElements/polymer-starter-kit.git',
+      remoteUrl: 'https://$GH_TOKEN@github.com/lyze/PolyTeX.git',
       silent: true,
       branch: 'gh-pages'
     }), $.ghPages()));

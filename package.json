@@ -1,5 +1,5 @@
 {
-  "name": "gTeX",
+  "name": "PolyTeX",
   "version": "0.0.1",
   "author": "David Xu",
   "private": true,
@@ -17,7 +17,7 @@
     "gulp-autoprefixer": "^3.1.0",
     "gulp-babel": "^6.1.2",
     "gulp-cache": "^0.4.0",
-    "gulp-changed": "^1.0.0",
+    "gulp-changed": "^1.3.0",
     "gulp-crisper": "^1.0.0",
     "gulp-eslint": "^2.0.0",
     "gulp-gh-pages": "^0.5.4",

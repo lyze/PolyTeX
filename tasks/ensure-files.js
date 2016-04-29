@@ -15,7 +15,7 @@ var fs = require('fs');
  */
 
 function ensureFiles(files, cb) {
-  var missingFiles = files.reduce(function(prev, filePath) {
+  var missingFiles = files.reduce((prev, filePath) => {
     var fileFound = false;
 
     try {
@@ -23,14 +23,14 @@ function ensureFiles(files, cb) {
     } catch (e) { }
 
     if (!fileFound) {
-      prev.push(filePath + ' Not Found');
+      prev.push('Not found: ' + filePath);
     }
 
     return prev;
   }, []);
 
   if (missingFiles.length) {
-    var err = new Error('Missing Required Files\n' + missingFiles.join('\n'));
+    var err = new Error('Missing required files:\n' + missingFiles.join('\n'));
   }
 
   if (cb) {

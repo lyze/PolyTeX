@@ -1,6 +1,29 @@
 # PolyTeX
 
-A LaTeX editor that can compile a PDF in your browser.
+A LaTeX editor that can compile PDFs entirely in your browser.
+
+Currently, it only requires a server that can serve static assets from the TeX
+Live distribution.
+
+Powered by [texlive.js](//github.com/manuels/texlive.js) and
+[Polymer](//github.com/Polymer/polymer).
+
+[Demo](//lyze.github.io/PolyTeX)
+
+## TODOs
+
+- [ ] Integrate Google Drive API
+  - [ ] Realtime API
+  - [ ] Drive App
+
+- [ ] Help improve [texlive.js](//github.com/manuels/texlive.js)
+
+- [ ] Support local TeX Live distribution (with a Chrome app or extension)
+
+- [ ] Make the compile log go away without having to give focus and hit `ESC`
+  (probably something to do with using an `iron-autogrow-textarea`...)
+
+- [ ] Refactoring
 
 
 ## Install dependencies

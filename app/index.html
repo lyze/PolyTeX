@@ -15,7 +15,7 @@
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="generator" content="Polymer Starter Kit">
-    <title>gTeX</title>
+    <title>PolyTeX</title>
 
     <!-- Place favicon.ico in the `app/` directory -->
 
@@ -53,7 +53,7 @@
     <!-- For shared styles, shared-styles.html import in elements.html -->
     <style is="custom-style" include="shared-styles"></style>
 
-    <!-- build:css styles/main.css -->
+    <!-- build:css styles/main.min.css -->
     <link rel="stylesheet" href="styles/main.css">
     <!-- endbuild-->
 
@@ -124,7 +124,6 @@
           <paper-fab id="generatePreviewButton" icon="arrow-forward"></paper-fab>
 
           <paper-toast id="compileProblemToast" text="[[compilationError]]" role="alert"></paper-toast>
-          <button id="auth_button">Authorize</button>
         </paper-header-panel>
       </paper-drawer-panel>
 
@@ -137,8 +136,6 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/es6-promise/3.2.1/es6-promise.min.js"></script>
     <script src="bower_components/texlivejs/pdftex.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/mode/stex/stex.js"></script>
-    <script src="//apis.google.com/js/api.js"></script>
-    <script src="scripts/realtime-client-utils.js"></script>
     <script src="scripts/app.js"></script>
     <!-- endbuild -->
   </body>
