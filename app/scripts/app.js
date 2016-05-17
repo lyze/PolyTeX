@@ -43,8 +43,7 @@ import CompilationService from './compilationservice';
     var compileLogTextArea = Polymer.dom(document).querySelector('#compileLogTextArea');
 
     compileLog.fitInto = preview;
-
-    app.showLog = e => {
+    app.toggleCompileLog = _ => {
       compileLog.toggle();
     };
 
@@ -58,11 +57,13 @@ import CompilationService from './compilationservice';
       console.log('Started compilation at ' + startTime);
 
       compileLogTextArea.value = '';
+      compileLog.refit();
       var outputListener = msg => {
         // console.log(msg);
         // Is this actually performant?
         if (msg !== undefined && msg !== null) {
           compileLogTextArea.value += msg + '\n';
+          compileLog.refit();
         }
         // workaround for PDFTeX not using promises correctly
         var errorRE = /Fatal error occurred, no output PDF file produced!$/;

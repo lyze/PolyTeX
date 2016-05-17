@@ -157,10 +157,10 @@ gulp.task('rollup', () => {
     ]
   }).then(bundle => {
     bundle.write({
-        sourceMap: true,
-        dest: 'build/scripts/app.js'
-      });
+      sourceMap: true,
+      dest: 'build/scripts/app.js'
     });
+  });
 });
 
 gulp.task('js', ['rollup'], () => {

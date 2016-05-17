@@ -20,9 +20,6 @@ Powered by [texlive.js](//github.com/manuels/texlive.js) and
 
 - [ ] Support local TeX Live distribution (with a Chrome app or extension)
 
-- [ ] Make the compile log go away without having to give focus and hit `ESC`
-  (probably something to do with using an `iron-autogrow-textarea`...)
-
 - [ ] Refactoring
 
 

@@ -93,13 +93,13 @@
             <paper-icon-button icon="menu" paper-drawer-toggle></paper-icon-button>
             <span class="title">{{filename}}</span>
             <iron-pages attr-for-selected="status" selected="{{compileStatus}}" fallback-selection="default">
-              <paper-icon-button status="default" icon="description" on-tap="showLog"></paper-icon-button>
-              <paper-icon-button status="in-progress" icon="info-outline" on-tap="showLog"></paper-icon-button>
-              <paper-icon-button status="in-progress-warning" icon="error-outline" on-tap="showLog"></paper-icon-button>
-              <paper-icon-button status="in-progress-error" icon="error-outline" on-tap="showLog"></paper-icon-button>
-              <paper-icon-button status="ok" icon="info" on-tap="showLog"></paper-icon-button>
-              <paper-icon-button status="warning" icon="warning" on-tap="showLog"></paper-icon-button>
-              <paper-icon-button status="error" icon="error" on-tap="showLog"></paper-icon-button>
+              <paper-icon-button status="default" icon="description" on-tap="toggleCompileLog"></paper-icon-button>
+              <paper-icon-button status="in-progress" icon="info-outline" on-tap="toggleCompileLog"></paper-icon-button>
+              <paper-icon-button status="in-progress-warning" icon="error-outline" on-tap="toggleCompileLog"></paper-icon-button>
+              <paper-icon-button status="in-progress-error" icon="error-outline" on-tap="toggleCompileLog"></paper-icon-button>
+              <paper-icon-button status="ok" icon="info" on-tap="toggleCompileLog"></paper-icon-button>
+              <paper-icon-button status="warning" icon="warning" on-tap="toggleCompileLog"></paper-icon-button>
+              <paper-icon-button status="error" icon="error" on-tap="toggleCompileLog"></paper-icon-button>
             </iron-pages>
           </paper-toolbar>
 
@@ -112,11 +112,12 @@
                 <paper-progress indeterminate id="compileProgress" style="width: inherit" hidden$="[[!isCompiling]]"></paper-progress>
                 <iframe id="previewIFrame" src="about:blank" class="flex center"></iframe>
                 <!-- TODO -->
-                <paper-dialog id="compileLog">
+                <paper-dialog no-cancel-on-outside-click id="compileLog">
                   <h2>Compile log</h2>
-                  <div class="flex horizontal layout">
+                  <paper-dialog-scrollable>
                     <iron-autogrow-textarea id="compileLogTextArea" class="flex" max-rows="0"></iron-autogrow-textarea>
-                    </div>
+                  </paper-dialog-scrollable>
+                  <paper-button dialog-dismiss>Close</paper-button>
                 </paper-dialog>
               </div>
             </div>
