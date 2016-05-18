@@ -1,7 +1,10 @@
 # License
 
-Copyright David Xu, 2016. Anything that does not have my copyright on it is BSD
-style licensed.
+Any file that is not otherwise explicitly licensed is under copyright of David
+Xu, 2016.
+
+Every other file that has an explicit license is under the following copyright
+license:
 
 Copyright (c) 2015 The Polymer Authors. All rights reserved.
 
