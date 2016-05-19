@@ -71,6 +71,7 @@ var optimizeStyleTask = (src, buildDest, distDest) => {
 
 var optimizeImageTask = (src, dest) => {
   return gulp.src(src)
+    .pipe($.changed(dest))
     .pipe($.imagemin({
       progressive: true,
       interlaced: true
@@ -82,6 +83,7 @@ var optimizeImageTask = (src, dest) => {
 var optimizeHtmlTask = (src, dest) => {
   var assets = $.useref.assets();
   return gulp.src(src)
+    .pipe($.changed(dest))
     .pipe(assets)
     // Concatenate and minify JavaScript
     .pipe($.if('*.js', $.uglify({
@@ -130,13 +132,18 @@ gulp.task('copy', () => {
     '!**/.DS_Store'
   ], {
     dot: true
-  }).pipe(gulp.dest(dist()));
+  })
+        .pipe($.changed(dist()))
+        .pipe(gulp.dest(dist()));
 
   // Copy over only the bower_components we need
   // These are things which cannot be vulcanized
   var bower = gulp.src([
-    'app/bower_components/{webcomponentsjs,platinum-sw,sw-toolbox,promise-polyfill,texlivejs}/**/*'
-  ]).pipe(gulp.dest(dist('bower_components')));
+    'app/bower_components/{webcomponentsjs,platinum-sw,sw-toolbox,promise-polyfill,texlivejs}/**/*',
+    '!app/bower_components/texlivejs/texlive/texmf-dist/scripts/**'
+  ])
+        .pipe($.changed(dist()))
+        .pipe(gulp.dest(dist('bower_components')));
 
   return merge(app, bower)
     .pipe($.size({
@@ -159,6 +166,9 @@ gulp.task('rollup', () => {
     bundle.write({
       sourceMap: true,
       dest: 'build/scripts/app.js'
+    });
+    bundle.write({
+      dest: dist('scripts/app.js')
     });
   });
 });
@@ -204,6 +214,7 @@ gulp.task('vulcanize', ['bower_components'], () => {
       inlineCss: true,
       inlineScripts: true
     }))
+    .on('error', e => console.error(e))
     .pipe(gulp.dest(dist('elements')))
     .pipe($.size({title: 'vulcanize'}));
 });
@@ -317,7 +328,8 @@ gulp.task('serve-dist', ['dist'], () => {
         })
       ]
     }
-  })
+  });
+
   gulp.watch(['app/**/*', '!app/bower_components/**/*'], ['dist', reload]);
 });
 

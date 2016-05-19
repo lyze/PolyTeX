@@ -4,7 +4,7 @@ import CompilationService from './compilationservice';
 import newDriveAndRealtimePromise from './googleapis';
 
 
-((document, Polymer) => {
+((document) => {
   'use strict';
   const compilationService = new CompilationService();
 
@@ -219,4 +219,4 @@ import newDriveAndRealtimePromise from './googleapis';
     };
   }); // WebComponentsReady
 
-})(document, Polymer);
+})(document);
