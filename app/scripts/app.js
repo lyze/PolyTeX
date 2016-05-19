@@ -31,7 +31,7 @@ import newDriveAndRealtimePromise from './googleapis';
   app.addEventListener('dom-change', () => {
   });
 
-  app.filename = 'PolyTeX';
+  app.filename = 'untitled.tex';
   app.isCompiling = false;
   app.codeMirrorOptions = {
     mode: 'stex',
@@ -57,6 +57,9 @@ import newDriveAndRealtimePromise from './googleapis';
     var compileProblemToast = Polymer.dom(document).querySelector('#compileProblemToast');
     var compileLog = Polymer.dom(document).querySelector('#compileLog');
     var compileLogTextArea = Polymer.dom(document).querySelector('#compileLogTextArea');
+
+    var filenameTextArea = Polymer.dom(document).querySelector('#filenameTextArea');
+    app.filenameTarget = filenameTextArea;
 
     var apiErrorToast = Polymer.dom(document).querySelector('#apiErrorToast');
 
@@ -149,9 +152,6 @@ import newDriveAndRealtimePromise from './googleapis';
       }
     };
 
-    app.viewInDrive = () => window.open(app.webViewLink);
-
-
     // app properties read: fileId
     // app properties written: fileId, webViewLink, doSave
     app.startDriveIntegration = () => {
@@ -161,7 +161,7 @@ import newDriveAndRealtimePromise from './googleapis';
 
       newDriveAndRealtimePromise(driveApiLoader, realtimeApiLoader)
         .then(([drive, realtime]) => {
-          console.log('Google APIs loaded.');
+          console.log('Loaded Google APIs.');
 
           app.doSave = e => {
             // use the realtime model data instead?

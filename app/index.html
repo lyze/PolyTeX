@@ -67,14 +67,14 @@
           </paper-toolbar>
           <paper-menu selectable="#no-menu-item-is-selectable">
             <paper-item id="loadItem" on-tap="doLoadItemAction">Load</paper-item>
-            <paper-item id="saveItem" on-tap="doSaveItemAction" hidden$="[[!fileId]]">Save</paper-item>
+            <paper-item id="saveItem" on-tap="doSaveItemAction" disabled="[[!fileId]]">Save</paper-item>
             <hr>
             <paper-item id="helloWorldItem" on-tap="doHelloWorld">Hello, world!</paper-item>
             <hr>
-            <google-signin width="wide" height="tall"
+            <google-signin width="wide" height="tall" theme="dark"
                            client-id="707726290441-2t740vcema93b7jad2acqiku87qe25s6.apps.googleusercontent.com"
                            scopes="https://www.googleapis.com/auth/drive.install https://www.googleapis.com/auth/drive.file"
-                           on-google-signin-success="startDriveIntegration"
+                           on-google-signin-success="maybeStartDriveIntegration"
                            on-google-signed-out="endDriveIntegration"
                            signed-in="{{signedIn}}"></google-signin>
           </paper-menu>
@@ -84,8 +84,27 @@
 
           <paper-toolbar id="mainToolbar">
             <paper-icon-button icon="menu" paper-drawer-toggle></paper-icon-button>
-            <span class="title">{{filename}}</span>
-            <iron-pages attr-for-selected="status" selected="{{compileStatus}}" fallback-selection="default">
+            <div class="title horizontal layout">
+              <!-- TODO: editable title -->
+              <iron-a11y-keys target="[[filenameTarget]]" keys="enter" on-keys-pressed="maybeUpdateFilename"></iron-a11y-keys>
+              <!-- <iron-autogrow-textarea id="filenameInput" class="editable-title" placeholder="untitled.tex" max-rows="1" value="{{filename}}" focused-changed="maybeUpdateFilename"></iron-autogrow-textarea> -->
+
+              <autogrow-input id="filenameInput" class="editable-title" placeholder="untitled.tex" value="{{filename}}" focused-changed="maybeUpdateFilename"></autogrow-input>
+
+              <div class="flex" style="min-width: 8px"></div>
+            </div>
+            <!-- <div class="title horizontal layout"> -->
+            <!--   <div class="editable-title" contenteditable="true">{{filename}}</div> -->
+            <!--   <div class="flex" style="min-width: 8px"></div> -->
+            <!-- </div> -->
+
+            <iron-pages attr-for-selected="status" selected="[[cloudStatus]]" fallback-selection="off">
+              <paper-icon-button status="off" icon="cloud-off" on-tap="startDriveIntegration"></paper-icon-button>
+              <paper-icon-button status="pending-creation" icon="cloud-queue"></paper-icon-button>
+              <paper-icon-button status="pending-changes" icon="cloud-circle"></paper-icon-button>
+              <paper-icon-button status="synced" icon="cloud-done"></paper-icon-button>
+            </iron-pages>
+            <iron-pages attr-for-selected="status" selected="[[compileStatus]]" fallback-selection="default">
               <paper-icon-button status="default" icon="description" on-tap="toggleCompileLog"></paper-icon-button>
               <paper-icon-button status="in-progress" icon="info-outline" on-tap="toggleCompileLog"></paper-icon-button>
               <paper-icon-button status="in-progress-warning" icon="error-outline" on-tap="toggleCompileLog"></paper-icon-button>
@@ -104,7 +123,6 @@
               <div id="preview" class="flex vertical layout">
                 <paper-progress indeterminate id="compileProgress" style="width: inherit" hidden$="[[!isCompiling]]"></paper-progress>
                 <iframe id="previewIFrame" src="about:blank" class="flex center"></iframe>
-                <!-- TODO -->
                 <paper-dialog no-cancel-on-outside-click id="compileLog">
                   <h2>Compile log</h2>
                   <paper-dialog-scrollable>
@@ -123,10 +141,12 @@
 
       <!-- TODO: Improve UX for authorizing Google services -->
       <!-- TODO: Where should these toasts go? -->
-      <paper-toast id="apiErrorToast" text="[[apiErrorMessage]]" opened="[[apiErrorMessage]]"></paper-toast>
       <paper-toast id="savedToast" text="[[savedMessage]]" opened="[[savedMessage]]">
-        <paper-button on-tap="viewInDrive" class="toast-action">View in Drive</paper-button>
+        <a href$="[[webViewLink]]">
+          <paper-button class="toast-action">View in Drive</paper-button>
+        </a>
       </paper-toast>
+      <paper-toast id="apiErrorToast" text="[[apiErrorMessage]]" opened="[[apiErrorMessage]]"></paper-toast>
       <google-client-loader id="driveApiLoader" name="drive" version="v3"></google-client-loader>
       <google-realtime-api id="realtimeApiLoader"></google-realtime-api>
     </template>

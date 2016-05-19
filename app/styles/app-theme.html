@@ -53,6 +53,56 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     color: var(--accent-color);
   }
 
+  paper-input.editable-title {
+    --paper-input-container-input: {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 20px;
+      font-weight: 400;
+      line-height: 1;
+    };
+    --paper-input-container-input-color: var(--dark-theme-text-color);
+  }
+
+  iron-autogrow-textarea.editable-title {
+    width: auto;
+    --iron-autogrow-textarea: {
+      white-space: nowrap;
+      overflow-x: hidden;
+      overflow-y: hidden;
+    }
+  }
+
+  autogrow-input.editable-title {
+    width: auto;
+    --autogrow-input: {
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    --autogrow-input-placeholder: {
+      color: var(--dark-theme-secondary-color);
+    }
+  }
+
+  .editable-title {
+    pointer-events: auto !important;
+  }
+
+  /* paper-input still uses core-style from 0.5 :( */
+  /* paper-input.editable-title /deep/ ::-webkit-input-placeholder {
+     color: var(--dark-theme-secondary-color);
+     }
+
+     paper-input.editable-title /deep/ ::-moz-placeholder {
+     color: var(--dark-theme-secondary-color);
+     }
+
+     paper-input.editable-title /deep/ :-ms-input-placeholder {
+     color: var(--dark-theme-secondary-color);
+     } */
+
+
   /* General styles */
 
   .space {
