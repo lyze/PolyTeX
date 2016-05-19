@@ -1,4 +1,21 @@
-<html><head><link rel="import" href="../../bower_components/polymer/polymer.html"><link rel="import" href="../../bower_components/paper-styles/typography.html"><link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout-classes.html"><link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout.html"></head><body><dom-module id="gtex-code-textarea"><style include="iron-flex iron-flex-alignment iron-positioning"></style><script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/codemirror.min.js"></script><link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/codemirror.min.css"><template><style>
+<!-- David Xu, 2016 --><html><head><link rel="import" href="../../bower_components/polymer/polymer.html">
+<link rel="import" href="../../bower_components/paper-styles/typography.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout.html">
+
+
+<!--
+
+Custom property | Description | Default
+---------------------------------------
+`--gtex-code-textarea
+-->
+</head><body><dom-module id="gtex-code-textarea">
+  <style include="iron-flex iron-flex-alignment iron-positioning"></style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/codemirror.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/codemirror.min.css">
+  <template>
+    <style>
       :host {
         --iron-autogrow-textarea {
           @apply(--paper-font-common-code);
@@ -12,4 +29,13 @@
         height: 100%;
         z-index: 0;
       }
-    </style><paper-material id="container" elevation="{{elevation}}" animated="{{animated}}" class="flex vertical layout"><div class="flex horizontal layout"><iron-autogrow-textarea id="ironTextArea" class="flex" max-rows="0"></iron-autogrow-textarea></div></paper-material></template></dom-module><script src="gtex-code-textarea.js"></script></body></html>
+    </style>
+    <!-- CodeMirror does not play nice with flexboxes :( -->
+    <paper-material id="container" elevation="{{elevation}}" animated="{{animated}}" class="flex vertical layout">
+      <div class="flex horizontal layout">
+        <iron-autogrow-textarea id="ironTextArea" class="flex" max-rows="0"></iron-autogrow-textarea>
+      </div>
+    </paper-material>
+  </template>
+  </dom-module>
+<script src="gtex-code-textarea.js"></script></body></html>
