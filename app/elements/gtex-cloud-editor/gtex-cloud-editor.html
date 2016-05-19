@@ -1,0 +1,178 @@
+<!-- @license  -->
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout.html">
+
+<link rel="import" href="../gtex-code-textarea/gtex-code-textarea.html">
+
+<dom-module id="gtex-cloud-editor">
+  <style>
+  </style>
+  <template>
+    <gtex-code-textarea id="editor" class="flex" editor-options="{{editorOptions}}" animated="true"></gtex-code-textarea>
+    <google-client-loader id="driveApiLoader" name="drive" version="v3"></google-client-loader>
+    <google-realtime-api id="realtimeApiLoader"></google-realtime-api>
+  </template>
+</dom-module>
+<script src="googleapis.js"></script>
+<script>
+  Polymer({
+    is: 'gtex-cloud-editor',
+
+    /**
+     * Fired when the Google APIs are loaded.
+     * @event cloud-ready
+     */
+
+    properties: {
+      editorOptions: {
+        type: Object,
+        notify: true,
+      },
+
+      noCloud: Boolean,
+
+      name: {
+        type: String,
+        notify: true
+      },
+      fileId: {
+        type: String,
+        readOnly: true
+      },
+      webViewLink: {
+        type: String,
+        readOnly: true
+      }
+    },
+
+    listeners: {
+      'name-changed': 'nameChanged',
+    },
+
+
+    getValue: function () {
+      return this.$.editor.getValue();
+    },
+
+    setValue: function (v) {
+      return this.$.editor.setValue(v);
+    },
+
+    created: function () {
+      console.log('Loading Google APIs...');
+    },
+
+    _initGoogle: function () {
+      var realtimePromise;
+      if (this.$.realtimeApiLoader.libraryLoaded) {
+        realtimePromise = Promise.resolve(realtimeApiLoader.api);
+      } else {
+        realtimePromise = new Promise((resolve, reject) => {
+          this.$.realtimeApiLoader.addEventListener('api-load', e =>
+            resolve(new Realtime(e.target.api), new Auth(window.gapi.auth)));
+
+          this.$.realtimeApiLoader.addEventListener(
+            'library-error-message-changed', e => reject(e.detail.value));
+        });
+      }
+
+      var drivePromise = new Promise((resolve, reject) => {
+        this.$.driveApiLoader.addEventListener('google-api-load', e =>
+          Auth._authorize(e.target.auth, _ =>
+            resolve(new Drive(e.target.api), window.gapi)));
+
+        this.$.driveApiLoader.addEventListener('google-api-load-error',
+                                               e => reject(e.detail.value));
+      });
+
+      ([drivePromise, realtimePromise]).then(([driveApi, realtimeApi]) => {
+        this.realtime = new Realtime(realtimeApi, new Auth(window.gapi.auth));
+        this.drive = new Drive(driveApi, window.gapi);
+        this.fire('cloud-ready');
+      });
+    },
+
+    // Google API Integration
+
+    ready: function () {
+      if (!this.noCloud) {
+        this._initGoogle();
+      }
+    },
+
+    checkCloud: function () {
+      if (this.noCloud) {
+        throw new Error('Cloud support not available.');
+      }
+    },
+
+    nameChanged: function (newName) {
+      console.log(`New name: ${newName}`);
+    },
+
+    startDriveIntegration: function () {
+      this.checkCloud();
+
+      var initializeModel = model => {
+        var string = model.createString();
+        string.setText('');
+        model.getRoot().set('PolyTeX-data', string);
+      };
+
+      var wire = doc => {
+        var model = doc.getModel();
+        var collaborativeString = model.getRoot().get('PolyTeX-data');
+        var codeMirror = this.$.editor.codeMirror;
+        var codeMirrorDoc = codeMirror.getDoc();
+        collaborativeString.addEventListener(
+          this.realtime.api.EventType.TEXT_INSERTED, e => {
+            var pos = codeMirrorDoc.posFromIndex(e.index);
+            // performs an insertion if you call it with only one position argument
+            doc.replaceRange(e.text, pos);
+        });
+        collaborativeString.addEventListener(
+          this.realtime.api.EventType.TEXT_DELETED, e => {
+            var start = codeMirrorDoc.posFromIndex(e.index);
+            var end = codeMirrorDoc.posFromIndex(e.index + e.text.length);
+            doc.replaceRange('', start, end);
+        });
+        codeMirror.on('change', (_, e) => {
+          model.beginCompoundOperation();
+          for (let line = e.from.line; line < e.to.line; line++) {
+            var start = codeMirrorDoc.indexFromPos({line: line, ch: e.from.ch});
+            var end = codeMirrorDoc.indexFromPos({line: line, ch: e.to.ch});
+            collaborativeString.removeRange(start, end);
+            collaborativeString.insertString(start, e.text[line - e.from.line]);
+          }
+          model.endCompoundOperation();
+        });
+      };
+
+      this.drive.createTeXFile(this.name, {fields: 'id,name,webViewLink'})
+          .then(response => {
+        console.log('Created Google Drive file: ' + response.result.name, response);
+
+        this.fileId = response.result.id;
+        this.webViewLink = response.result.webViewLink;
+
+        // start the realtime functionality
+        this.realtime.load(response.result.id, wire, initializeModel,
+                           e => app.apiErrorMessage = e.toString());
+      });
+    },
+
+    save: function () {
+      this.checkCloud();
+
+      // use the realtime model data instead?
+      return this.drive.saveTeXFile(app.fileId, editor.getValue()).then(response => {
+        console.log('Saved.', response);
+      }, response => {
+        console.error('Cannot save file.', response);
+        throw response;
+      });
+    },
+
+  });
+</script>

@@ -1,7 +1,6 @@
 /* global Polymer */
 // Copyright David Xu, 2016
 import CompilationService from './compilationservice';
-import newDriveAndRealtimePromise from './googleapis';
 
 
 ((document) => {
@@ -49,6 +48,8 @@ import newDriveAndRealtimePromise from './googleapis';
   };
 
   window.addEventListener('WebComponentsReady', () => {
+    var filenameTextArea = Polymer.dom(document).querySelector('#filenameTextArea');
+
     var editor = Polymer.dom(document).querySelector('#editor');
     var generatePreviewButton = Polymer.dom(document).querySelector('#generatePreviewButton');
     var compileProgress = Polymer.dom(document).querySelector('#compileProgress');
@@ -57,9 +58,6 @@ import newDriveAndRealtimePromise from './googleapis';
     var compileProblemToast = Polymer.dom(document).querySelector('#compileProblemToast');
     var compileLog = Polymer.dom(document).querySelector('#compileLog');
     var compileLogTextArea = Polymer.dom(document).querySelector('#compileLogTextArea');
-
-    var filenameTextArea = Polymer.dom(document).querySelector('#filenameTextArea');
-    app.filenameTarget = filenameTextArea;
 
     var apiErrorToast = Polymer.dom(document).querySelector('#apiErrorToast');
 
@@ -152,71 +150,17 @@ import newDriveAndRealtimePromise from './googleapis';
       }
     };
 
+    app.doSave = e => {
+      editor.save().then(_ => notifySaved(editor.name),
+                         r => app.apiErrorMessage = r.error.message);
+    };
+
+    editor.addEventListener('cloud-ready', _ => {
+      editor.startDriveIntegration();
+    });
+
     // app properties read: fileId
     // app properties written: fileId, webViewLink, doSave
-    app.startDriveIntegration = () => {
-      console.log('Loading Google APIs...');
-      var realtimeApiLoader = Polymer.dom(document).querySelector('#realtimeApiLoader');
-      var driveApiLoader = Polymer.dom(document).querySelector('#driveApiLoader');
-
-      newDriveAndRealtimePromise(driveApiLoader, realtimeApiLoader)
-        .then(([drive, realtime]) => {
-          console.log('Loaded Google APIs.');
-
-          app.doSave = e => {
-            // use the realtime model data instead?
-            drive.uploadTeXFile(app.fileId, editor.getValue()).then(response => {
-              console.log('Saved.', response);
-              notifySaved(response.result.name);
-            }, response => {
-              console.error('Cannot save file.', response);
-              app.apiErrorMessage = response.error.message;
-            });
-          };
-
-          var initializeModel = model => {
-            var string = model.createString();
-            string.setText('');
-            model.getRoot().set('PolyTeX-data', string);
-          };
-
-          var wire = doc => {
-            var model = doc.getModel();
-            var collaborativeString = model.getRoot().get('PolyTeX-data');
-            var codeMirror = editor.codeMirror;
-            var codeMirrorDoc = codeMirror.getDoc();
-            collaborativeString.addEventListener(realtime.api.EventType.TEXT_INSERTED, e => {
-              var pos = codeMirrorDoc.posFromIndex(e.index);
-              // performs an insertion if you call it with only one position argument
-              doc.replaceRange(e.text, pos);
-            });
-            collaborativeString.addEventListener(realtime.api.EventType.TEXT_DELETED, e => {
-              var start = codeMirrorDoc.posFromIndex(e.index);
-              var end = codeMirrorDoc.posFromIndex(e.index + e.text.length);
-              doc.replaceRange('', start, end);
-            });
-            codeMirror.on('change', (_, e) => {
-              model.beginCompoundOperation();
-              for (let line = e.from.line; line < e.to.line; line++) {
-                var start = codeMirrorDoc.indexFromPos({line: line, ch: e.from.ch});
-                var end = codeMirrorDoc.indexFromPos({line: line, ch: e.to.ch});
-                collaborativeString.removeRange(start, end);
-                collaborativeString.insertString(start, e.text[line - e.from.line]);
-              }
-              model.endCompoundOperation();
-            });
-          };
-
-          drive.createTeXFile(app.filename, {fields: 'id,name,webViewLink'}).then(response => {
-            console.log('Created Google Drive file: ' + response.result.name, response);
-            app.fileId = response.result.id;
-            app.webViewLink = response.result.webViewLink;
-            // start the realtime functionality
-            realtime.load(response.result.id, wire, initializeModel,
-                          e => app.apiErrorMessage = e.toString());
-          });
-        });
-    };
   }); // WebComponentsReady
 
 })(document);

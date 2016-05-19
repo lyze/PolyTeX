@@ -1,4 +1,4 @@
-<!-- Copyright David Xu, 2016 -->
+<!-- @license Copyright David Xu, 2016 -->
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 <link rel="import" href="../../bower_components/paper-styles/typography.html">
 <link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
@@ -30,6 +30,7 @@ Custom property | Description | Default
         z-index: 0;
       }
     </style>
+    <!-- TODO: investigate other editors, like Ace -->
     <!-- CodeMirror does not play nice with flexboxes :( -->
     <paper-material id="container" elevation="{{elevation}}" animated="{{animated}}" class="flex vertical layout">
       <div class="flex horizontal layout">
@@ -66,6 +67,9 @@ Custom property | Description | Default
       },
 
       _setCodeMirrorOptions: function (newOptions) {
+        if (newOptions == null) {
+          newOptions = {};
+        }
         if (this.codeMirror === undefined) {
           this.editorOptions = newOptions;
         } else {

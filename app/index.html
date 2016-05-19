@@ -84,26 +84,20 @@
 
           <paper-toolbar id="mainToolbar">
             <paper-icon-button icon="menu" paper-drawer-toggle></paper-icon-button>
-            <div class="title horizontal layout">
-              <!-- TODO: editable title -->
+            <div class="title">
+              <!-- TODO: tooltips? -->
               <iron-a11y-keys target="[[filenameTarget]]" keys="enter" on-keys-pressed="maybeUpdateFilename"></iron-a11y-keys>
-              <!-- <iron-autogrow-textarea id="filenameInput" class="editable-title" placeholder="untitled.tex" max-rows="1" value="{{filename}}" focused-changed="maybeUpdateFilename"></iron-autogrow-textarea> -->
-
               <autogrow-input id="filenameInput" class="editable-title" placeholder="untitled.tex" value="{{filename}}" focused-changed="maybeUpdateFilename"></autogrow-input>
-
               <div class="flex" style="min-width: 8px"></div>
             </div>
-            <!-- <div class="title horizontal layout"> -->
-            <!--   <div class="editable-title" contenteditable="true">{{filename}}</div> -->
-            <!--   <div class="flex" style="min-width: 8px"></div> -->
-            <!-- </div> -->
 
             <iron-pages attr-for-selected="status" selected="[[cloudStatus]]" fallback-selection="off">
               <paper-icon-button status="off" icon="cloud-off" on-tap="startDriveIntegration"></paper-icon-button>
-              <paper-icon-button status="pending-creation" icon="cloud-queue"></paper-icon-button>
-              <paper-icon-button status="pending-changes" icon="cloud-circle"></paper-icon-button>
-              <paper-icon-button status="synced" icon="cloud-done"></paper-icon-button>
+              <a status="dirty" class="cloud-status">There are unsaved changes</a>
+              <a status="saving" class="cloud-status">Saving…</a>
+              <a status="saved" class="cloud-status">All changes saved in Drive</a>
             </iron-pages>
+
             <iron-pages attr-for-selected="status" selected="[[compileStatus]]" fallback-selection="default">
               <paper-icon-button status="default" icon="description" on-tap="toggleCompileLog"></paper-icon-button>
               <paper-icon-button status="in-progress" icon="info-outline" on-tap="toggleCompileLog"></paper-icon-button>
@@ -117,9 +111,8 @@
 
           <div id="mainContent" class="fit vertical layout">
             <div id="contentArea" class="flex horizontal layout">
-              <gtex-code-textarea id="editor" class="flex" editor-options="[[codeMirrorOptions]]" animated="true"></gtex-code-textarea>
+              <gtex-cloud-editor id="editor" class="flex" name="{{filename}}" editor-options="[[codeMirrorOptions]]" no-cloud></gtex-cloud-editor>
 
-              <!-- TODO: Refactor this out -->
               <div id="preview" class="flex vertical layout">
                 <paper-progress indeterminate id="compileProgress" style="width: inherit" hidden$="[[!isCompiling]]"></paper-progress>
                 <iframe id="previewIFrame" src="about:blank" class="flex center"></iframe>
@@ -147,8 +140,6 @@
         </a>
       </paper-toast>
       <paper-toast id="apiErrorToast" text="[[apiErrorMessage]]" opened="[[apiErrorMessage]]"></paper-toast>
-      <google-client-loader id="driveApiLoader" name="drive" version="v3"></google-client-loader>
-      <google-realtime-api id="realtimeApiLoader"></google-realtime-api>
     </template>
 
     <!-- build:js scripts/app.js -->
