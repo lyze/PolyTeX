@@ -1,14 +1,5 @@
 <!doctype html>
-<!-- David Xu, 2016 -->
-<!--
-    @license
-    Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
-    This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-    The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-    The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-    Code distributed by Google as part of the polymer project is also
-    subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
-  -->
+<!-- Copyright David Xu, 2016 -->
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -66,6 +57,7 @@
     <!-- endbuild -->
 
     <template is="dom-bind" id="app">
+      <iron-a11y-keys target="[[a11yTarget]]" keys="ctrl+s" on-keys-pressed="doSave"></iron-a11y-keys>
 
       <paper-drawer-panel id="drawerPanel" force-narrow>
 
@@ -73,18 +65,19 @@
           <paper-toolbar id="navheader">
             <span class="title">Actions</span>
           </paper-toolbar>
-          <paper-menu>
-            <paper-item id="loadItem" on-tap="doLoad">Load</paper-item>
-            <paper-item id="saveItem" on-tap="doSave">Save</paper-item>
+          <paper-menu selectable="#no-menu-item-is-selectable">
+            <paper-item id="loadItem" on-tap="doLoadItemAction">Load</paper-item>
+            <paper-item id="saveItem" on-tap="doSaveItemAction" hidden$="[[!fileId]]">Save</paper-item>
             <hr>
             <paper-item id="helloWorldItem" on-tap="doHelloWorld">Hello, world!</paper-item>
-          <!--   <hr> -->
-          <!--   <google-signin width="wide" height="tall" -->
-          <!--                  client-id="707726290441-2t740vcema93b7jad2acqiku87qe25s6.apps.googleusercontent.com" -->
-          <!--                  scopes="https://www.googleapis.com/auth/drive.install https://www.googleapis.com/auth/drive.file" -->
-          <!--                  on-google-signin-success="start" -->
-          <!--                  signed-in="{{signedIn}}"></google-signin> -->
-          <!-- </paper-menu> -->
+            <hr>
+            <google-signin width="wide" height="tall"
+                           client-id="707726290441-2t740vcema93b7jad2acqiku87qe25s6.apps.googleusercontent.com"
+                           scopes="https://www.googleapis.com/auth/drive.install https://www.googleapis.com/auth/drive.file"
+                           on-google-signin-success="startDriveIntegration"
+                           on-google-signed-out="endDriveIntegration"
+                           signed-in="{{signedIn}}"></google-signin>
+          </paper-menu>
         </paper-header-panel>
 
         <paper-header-panel main id="mainHeaderPanel">
@@ -124,12 +117,18 @@
           </div>
           <paper-fab id="generatePreviewButton" icon="arrow-forward"></paper-fab>
 
-          <paper-toast id="compileProblemToast" text="[[compilationError]]" role="alert"></paper-toast>
+          <paper-toast id="compileProblemToast" text="[[compilationError]]" opened="[[compilationError]]" role="alert"></paper-toast>
         </paper-header-panel>
       </paper-drawer-panel>
 
       <!-- TODO: Improve UX for authorizing Google services -->
-      <paper-toast id="authProblemToast" text="Failed to authorize Google services." role="alert"></paper-toast>
+      <!-- TODO: Where should these toasts go? -->
+      <paper-toast id="apiErrorToast" text="[[apiErrorMessage]]" opened="[[apiErrorMessage]]"></paper-toast>
+      <paper-toast id="savedToast" text="[[savedMessage]]" opened="[[savedMessage]]">
+        <paper-button on-tap="viewInDrive" class="toast-action">View in Drive</paper-button>
+      </paper-toast>
+      <google-client-loader id="driveApiLoader" name="drive" version="v3"></google-client-loader>
+      <google-realtime-api id="realtimeApiLoader"></google-realtime-api>
     </template>
 
     <!-- build:js scripts/app.js -->
