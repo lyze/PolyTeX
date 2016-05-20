@@ -8,7 +8,9 @@ The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
---><html><head><link rel="import" href="../bower_components/polymer/polymer.html">
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer.html">
 <link rel="import" href="../bower_components/paper-styles/typography.html">
 <link rel="import" href="../bower_components/paper-styles/color.html">
 
@@ -51,11 +53,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     color: var(--accent-color);
   }
 
-  /* General styles */
-
-  .space {
-    @apply(--layout-flex);
+  iron-autogrow-textarea.editable-title {
+    width: auto;
+    --iron-autogrow-textarea: {
+      white-space: nowrap;
+      overflow-x: hidden;
+      overflow-y: hidden;
+    }
   }
+
+  autogrow-input.editable-title {
+    width: auto;
+    --autogrow-input: {
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    --autogrow-input-placeholder: {
+      color: var(--dark-theme-secondary-color);
+    }
+  }
+
+  .editable-title {
+    pointer-events: auto !important;
+  }
+
+  .cloud-status {
+    color: var(--dark-theme-secondary-color);
+    cursor: pointer;
+  }
+
+  .cloud-status:hover {
+    text-decoration: underline;
+  }
+
+  /* General styles */
 
   paper-menu {
     --paper-menu-selected-item: {
@@ -65,22 +96,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     --paper-menu-focused-item-after: {
       background: var(--primary-color);
     }
-  }
-
-  paper-menu a {
-    @apply(--layout-horizontal);
-    @apply(--layout-center);
-
-    text-decoration: none;
-    color: var(--menu-link-color);
-    font-family: 'Roboto', 'Noto', sans-serif;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 24px;
-    min-height: 48px;
-    padding: 0 16px;
   }
 
   /* Breakpoints */
@@ -133,4 +148,3 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /* desktop-xlarge */
   @media all and (min-width: 1601px) and (max-width: 1920px) { }
 </style>
-</head><body></body></html>
