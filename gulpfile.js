@@ -1,5 +1,5 @@
 /*eslint-env node */
-/* Modified by David Xu, 2016 */
+/* Modifications copyright David Xu, 2016 */
 /*
 @license
 Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
@@ -58,12 +58,17 @@ var plumberErrorHandler = function (e) {
 };
 
 var optimizeStyleTask = (src, buildDest, distDest) => {
+  const cssFilter = $.filter('*.css', {restore: true});
   return gulp.src(src)
-    .pipe($.plumber(plumberErrorHandler))
+    .pipe(cssFilter)
     .pipe($.changed(buildDest, {extension: '.css'}))
+    .pipe($.plumber(plumberErrorHandler))
+    .pipe($.sourcemaps.init())
     .pipe($.autoprefixer(AUTOPREFIXER_BROWSERS))
     .pipe($.minifyCss())
     .pipe($.plumber.stop())
+    .pipe($.sourcemaps.write('.'))
+    .pipe(cssFilter.restore)
     .pipe(gulp.dest(buildDest))
     .pipe(gulp.dest(distDest))
     .pipe($.size({title: 'css'}));
@@ -81,20 +86,13 @@ var optimizeImageTask = (src, dest) => {
 };
 
 var optimizeHtmlTask = (src, dest) => {
-  var assets = $.useref.assets();
   return gulp.src(src)
     .pipe($.changed(dest))
-    .pipe(assets)
-    // Concatenate and minify JavaScript
+    .pipe($.useref({searchPath: 'build'}))
     .pipe($.if('*.js', $.uglify({
       preserveComments: 'some'
     })))
-    // Concatenate and minify styles
-    // In case you are still using useref build blocks
     .pipe($.if('*.css', $.minifyCss()))
-    .pipe(assets.restore())
-    .pipe($.useref())
-    // Minify any HTML
     .pipe($.if('*.html', $.minifyHtml({
       quotes: true,
       empty: true,
@@ -114,7 +112,7 @@ gulp.task('ensureFiles', cb => {
 });
 
 gulp.task('styles', () => {
-  return optimizeStyleTask('app/styles/**/*.css', 'build/styles', dist('styles'));
+  return optimizeStyleTask('app/styles/**', 'build/styles', dist('styles'));
 });
 
 gulp.task('images', () => {
@@ -136,7 +134,6 @@ gulp.task('copy', () => {
         .pipe($.changed(dist()))
         .pipe(gulp.dest(dist()));
 
-  // Copy over only the bower_components we need
   // These are things which cannot be vulcanized
   var bower = gulp.src([
     'app/bower_components/{webcomponentsjs,platinum-sw,sw-toolbox,promise-polyfill,texlivejs}/**/*',
@@ -157,9 +154,8 @@ gulp.task('rollup', () => {
     onwarn: $.util.log,
     plugins: [
       babel({
+        presets: ['es2015-rollup'],
         exclude: 'node_modules/**'
-        // plugins: ['external-helpers-2'],
-        // externalHelpers: true
       })
     ]
   }).then(bundle => {
@@ -173,13 +169,29 @@ gulp.task('rollup', () => {
   });
 });
 
-gulp.task('js', ['rollup'], () => {
+// currently unused
+gulp.task('elements', () => {
   return gulp.src(['app/**/*.html', '!app/bower_components/**'])
+    .pipe(gulp.dest('build'));
+});
+
+gulp.task('optimize-elements', () => {
+  return gulp.src(['app/elements/**/*'])
+    .pipe($.changed('build'))
     .pipe($.sourcemaps.init())
-    .pipe($.if('*.html', $.crisper({scriptInHead: false}))) // Extract JS from .html files
+    .pipe($.if('*.html', $.crisper({scriptInHead: false})))
+    .pipe($.if('*.html', $.minifyHtml({
+      quotes: true,
+      empty: true,
+      spare: true
+    })))
+    .pipe($.if('*.js', $.babel({presets: ['es2015']})))
+    .pipe($.if('*.js', $.uglify({
+      preserveComments: 'some'
+    })))
+    .on('error', e => console.error(e))
     .pipe($.sourcemaps.write('.'))
-    .pipe(gulp.dest('build'))
-    .pipe(gulp.dest(dist()));
+    .pipe(gulp.dest('build/elements'));
 });
 
 // Copy web fonts to dist
@@ -191,12 +203,8 @@ gulp.task('fonts', () => {
     }));
 });
 
-// Scan your HTML for assets & optimize them
-gulp.task('html', ['styles'], () => {
-  return optimizeHtmlTask(
-    ['build/**/*.html',
-     '!' + dist('{elements,test,bower_components}/**/*.html')],
-    dist());
+gulp.task('html', ['styles', 'rollup'], () => {
+  return optimizeHtmlTask(['app/*.html', 'app/styles/**/*.{html,css}'], dist());
 });
 
 // Copy all bower_components over to help js task and vulcanize work together
@@ -261,7 +269,7 @@ gulp.task('clean', () => {
 });
 
 // Watch files for changes & reload
-gulp.task('serve', ['styles', 'js'], () => {
+gulp.task('serve', ['styles', 'elements'], () => {
   browserSync({
     port: 5000,
     notify: false,
@@ -279,7 +287,7 @@ gulp.task('serve', ['styles', 'js'], () => {
     //       will present a certificate warning in the browser.
     // https: true,
     server: {
-      baseDir: ['build', 'app'],
+      baseDir: ['build'],
       middleware: [
         historyApiFallback({
           // workaround for pdftex-worker.js for requests like texmf-dist/ls-R
@@ -292,10 +300,10 @@ gulp.task('serve', ['styles', 'js'], () => {
     }
   });
 
-  gulp.watch(['app/**/*.html', '!app/bower_components/**'], ['js', reload]);
-  gulp.watch(['app/**/*.js', '!app/bower_comonents/**'], ['js', reload]);
-  gulp.watch(['app/**/*.css', '!app/bower_comonents/**'], ['styles', reload]);
-  gulp.watch(['app/images/**/*', '!app/bower_comonents/**'], ['images', reload]);
+  gulp.watch(['app/elements/**', '!app/bower_components/**'], ['optimize-elements', reload]);
+  gulp.watch(['app/scripts/*.js', '!app/bower_components/**'], ['rollup', reload]);
+  gulp.watch(['app/**/*.css', '!app/bower_components/**'], ['styles', reload]);
+  gulp.watch(['app/images/**/*', '!app/bower_components/**'], ['images', reload]);
 });
 
 // Build and serve the output from the dist build
@@ -339,7 +347,7 @@ gulp.task('dist', cb => {
   runSequence(
     'bower_components',
     ['ensureFiles', 'copy', 'styles'],
-    'js',
+    'optimize-elements',
     ['images', 'fonts', 'html'],
     'vulcanize',
     // 'cache-config',
@@ -371,7 +379,7 @@ gulp.task('deploy-gh-pages', () => {
 
 gulp.task('lint', () => {
   return gulp.src([
-    'app/scripts/**/*.js',
+    'app/**/*.js',
     '!app/bower_components/**',
     'app/**/*.html',
     'gulpfile.js'])
