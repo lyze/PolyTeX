@@ -292,10 +292,10 @@ gulp.task('serve', ['styles', 'js'], () => {
     }
   });
 
-  gulp.watch(['app/**/*.html', '!app/bower_components/**/*.html'], ['js', reload]);
-  gulp.watch(['app/styles/**/*.css'], ['styles', reload]);
-  gulp.watch(['app/scripts/**/*.js'], ['js', reload]);
-  gulp.watch(['app/images/**/*'], reload);
+  gulp.watch(['app/**/*.html', '!app/bower_components/**'], ['js', reload]);
+  gulp.watch(['app/**/*.js', '!app/bower_comonents/**'], ['js', reload]);
+  gulp.watch(['app/**/*.css', '!app/bower_comonents/**'], ['styles', reload]);
+  gulp.watch(['app/images/**/*', '!app/bower_comonents/**'], ['images', reload]);
 });
 
 // Build and serve the output from the dist build

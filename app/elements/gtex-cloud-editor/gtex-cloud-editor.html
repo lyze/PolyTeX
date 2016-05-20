@@ -8,7 +8,7 @@
 <dom-module id="gtex-cloud-editor">
   <style>
   </style>
-  <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/mode/stex/stex.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/mode/stex/stex.js"></script>
   <template>
     <gtex-code-textarea id="editor" class="flex" editor-options="{{editorOptions}}" animated="true"></gtex-code-textarea>
     <google-client-loader id="driveApiLoader" name="drive" version="v3"></google-client-loader>
@@ -38,21 +38,30 @@
 
       noCloud: Boolean,
 
+      name: {
+        type: String,
+        notify: true
+      },
+
       cloudStatus: {
         type: String,
         readOnly: true,
         notify: true,
       },
 
+
+      /**
+       * The ID of the file.
+       */
       fileId: {
         type: String,
         readOnly: true,
         notify: true
       },
-      name: {
-        type: String,
-        notify: true
-      },
+
+      /**
+       * A link to view the file.
+       */
       webViewLink: {
         type: String,
         readOnly: true,
@@ -74,36 +83,78 @@
     },
 
     created: function () {
-      console.log('Loading Google APIs...');
     },
 
     // Google API Integration
+    // TODO: Consider using gapi.auth2 to handle multiple logins more easily.
+
+    connectCloud() {
+      if (this.cloudStatus !== 'unauthorized') {
+        return;
+      }
+
+      return this._tryConnectGoogleSilentlyOrDie().catch(_ => {
+        console.log('Authorizing Google APIs...');
+        this.auth.authorize().then(_ => {
+          this._setCloudStatus('ready-to-sync');
+        }, token => {
+          console.error('Authorization failed.', token);
+          this._setCloudStatus('unauthorized');
+          throw token;
+        });
+      });
+    },
+
+    _tryConnectGoogleSilentlyOrDie: function () {
+      if (this._immediateLoginFailed) {
+        console.log('Not attempting to authorize Google APIs silently because of a previous failed attempt.');
+        return Promise.reject(this._immediateLoginFailed);
+      }
+
+      this._setCloudStatus('authorizing');
+      console.log('Authorizing Google APIs silently...');
+
+      return this.auth.authorizeImmediate().then(token => {
+        console.log('Authorized silently.', token);
+        this._setCloudStatus('ready-to-sync');
+        this.fire('cloud-ready');
+      }, token => {
+        this._immediateLoginFailed = token;
+        throw token;
+      });
+    },
 
     _initGoogle: function () {
+      console.log('Loading Google APIs...');
       var realtimePromise;
       if (this.$.realtimeApiLoader.libraryLoaded) {
         realtimePromise = Promise.resolve(realtimeApiLoader.api);
       } else {
         realtimePromise = new Promise((resolve, reject) => {
-          this.$.realtimeApiLoader.addEventListener('api-load', e =>
-            resolve(new Realtime(e.target.api), new Auth(window.gapi.auth)));
+          this.$.realtimeApiLoader.addEventListener('api-load', e => {
+            resolve(new Realtime(e.target.api, new Auth(this._gapi.auth)));
+          });
 
           // TODO: consider UX for case when realtime is unavailable
           this.$.realtimeApiLoader.addEventListener(
-            'library-error-message-changed', e => reject(e.detail.value));
+            'library-error-message-changed', e => { // TODO: fire event
+              this._setCloudStatus('unavailable');
+              console.error('Failed to load Realtime API.', e);
+              reject(e.detail.value);
+          });
         });
       }
 
       var drivePromise = new Promise((resolve, reject) => {
-        this.$.driveApiLoader.addEventListener('google-api-load', e =>
-          Auth._authorize(e.target.auth, _ =>
-            resolve(new Drive(e.target.api, window.gapi))));
+        this.$.driveApiLoader.addEventListener('google-api-load', e => {
+          resolve(new Drive(e.target.api, this._gapi));
+        });
 
         this.$.driveApiLoader.addEventListener(
-          'google-api-load-error',
-          e => {
-            reject(e.detail.value);
+          'google-api-load-error', e => { // TODO: fire event
             this._setCloudStatus('unavailable');
+            console.error('Failed to load Drive API.', e);
+            reject(e.detail.value);
         });
       });
 
@@ -111,8 +162,12 @@
         console.log('Loaded Google APIs.')
         this.drive = drive;
         this.realtime = realtime;
-        this._setCloudStatus('ready-to-connect');
-        this.fire('cloud-ready');
+        this.auth = new Auth(this._gapi.auth);
+        this._tryConnectGoogleSilentlyOrDie().catch(token => {
+          console.log('Failed to authorize silently. A login is required.',
+                      token);
+          this._setCloudStatus('unauthorized');
+        });
       });
     },
 
@@ -126,12 +181,38 @@
 
     checkCloud: function () {
       if (this.noCloud) {
-        throw new Error('Cloud support not available.');
+        throw new Error('Cloud support is not available.');
+      }
+      if (this.cloudStatus === 'unavailable') {
+        throw new Error('Google API is not loaded.');
+      }
+      if (this.cloudStatus === 'unauthorized') {
+        throw new Error('Google Drive API is not authorized.');
       }
     },
 
-    startDriveIntegration: function () {
+    get _gapi () {
+      console.assert(window.gapi, 'window.gapi should exist');
+      return window.gapi;
+    },
+
+    endCloudIntegration: function () {
       this.checkCloud();
+      console.log('Signing out...');
+      this._gapi.auth.signOut();
+      console.log('Signed out.');
+      this._setCloudStatus('unauthorized');
+      this._setFileId(null);
+      this._setWebViewLink(null);
+      this._immediateLoginFailed = null;
+    },
+
+    startCloudIntegration: function () {
+      this.checkCloud();
+
+      this.connectCloud();
+
+      console.assert(this._gapi.auth.getToken(), 'auth token should exist');
 
       var initializeModel = model => {
         console.log('Initializing model...');
@@ -187,9 +268,14 @@
         // start the realtime functionality
         // TODO: realtime can be orthogonal from saving to drive
         console.log('Connecting realtime API...');
-        this.realtime.load(response.result.id, wire, initializeModel,
-                           e => app.apiErrorMessage = e.toString());
-      });
+        this.realtime.load(
+          response.result.id, wire, initializeModel,
+          e => app.apiErrorMessage = e,
+          e => {
+            apiErrorToast.duration = 0;
+            app.apiErrorMessage = 'Failed to reauthorize for Google services.'
+         });
+      }, e => console.error(e));
     },
 
     save: function () {
@@ -203,10 +289,13 @@
           // did not become dirty after beginning save
           this._setCloudStatus('saved');
         }
+        // otherwise, it became dirty while saving, so don't update the status
         console.log('Saved.', response);
         return response;
       }, response => {
-        this._setCloudStatus('dirty');
+        if (this.fileId) {
+          this._setCloudStatus('dirty');
+        }
         console.error('Cannot save file.', response);
         throw response;
       });
@@ -216,7 +305,7 @@
       if (this.noCloud) {
         return;
       }
-      // TODO: filename change
+      // TODO: implement renaming the drive file
       console.log(`New name: ${newName}`);
     },
 

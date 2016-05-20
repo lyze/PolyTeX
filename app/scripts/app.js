@@ -25,6 +25,18 @@ import CompilationService from './compilationservice';
     }
   };
 
+  app.endCloudIntegration = () => {
+    // no-op; actual implementation defined later when app is ready.
+  };
+
+  app.isConnectCloudItemDisabled = cloudStatus =>
+    ['loading', 'unavailable', 'authorizing'].includes(cloudStatus);
+
+  app.isConnectCloudItemHidden = cloudStatus =>
+    !['loading', 'unavailable', 'unauthorized', 'authorizing'].includes(
+      cloudStatus);
+
+
   // Listen for template bound event to know when bindings have resolved and
   // content has been stamped to the page
   app.addEventListener('dom-change', () => {
@@ -39,12 +51,6 @@ import CompilationService from './compilationservice';
     lineNumbers: true
   };
 
-  // app properties written: webViewLink, fileId
-  app.endDriveIntegration = () => {
-    app.webViewLink = undefined;
-    app.fileId = undefined;
-    app.lastCloudModificationTime = undefined;
-  };
 
   window.addEventListener('WebComponentsReady', () => {
     var filenameTextArea = Polymer.dom(document).querySelector('#filenameTextArea');
@@ -145,8 +151,27 @@ import CompilationService from './compilationservice';
       drawerPanel.closeDrawer();
     };
 
-    app.startDriveIntegration = () => {
-      editor.startDriveIntegration();
+    app.connectCloud = () => {
+      drawerPanel.closeDrawer();
+      editor.connectCloud().catch(_ => {
+        app.apiErrorMessage = 'Failed to connect to Google Drive.';
+      });
+    };
+
+    app.disconnectCloud = () => {
+      drawerPanel.closeDrawer();
+      editor.endCloudIntegration();
+    };
+
+    app.startCloudIntegration = () => {
+      editor.startCloudIntegration();
+    };
+
+    app.endCloudIntegration = () => {
+      app.webViewLink = null;
+      app.fileId = null;
+      app.lastCloudModificationTime = null;
+      editor.endCloudIntegration();
     };
 
     editor.addEventListener('cloud-ready', () => {
@@ -170,7 +195,7 @@ import CompilationService from './compilationservice';
       };
     });
 
-    app.maybeStartDriveIntegration = () => {
+    app.maybeStartCloudIntegration = () => {
       // TODO: drive integration from google signin
     };
 

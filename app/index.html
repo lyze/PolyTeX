@@ -71,12 +71,14 @@
             <hr>
             <paper-item id="helloWorldItem" on-tap="doHelloWorld">Hello, world!</paper-item>
             <hr>
-            <google-signin id="googleSignIn" width="wide" height="tall" theme="dark"
-                           client-id="707726290441-2t740vcema93b7jad2acqiku87qe25s6.apps.googleusercontent.com"
-                           scopes="https://www.googleapis.com/auth/drive.install https://www.googleapis.com/auth/drive.file"
-                           on-google-signin-success="maybeStartDriveIntegration"
-                           on-google-signed-out="endDriveIntegration"
-                           signed-in="{{signedIn}}"></google-signin>
+            <paper-item selected="unauthorized" id="connectCloudItem" on-tap="connectCloud"
+                        disabled="[[isConnectCloudItemDisabled(cloudStatus)]]" hidden$="[[isConnectCloudItemHidden(cloudStatus)]]">
+              Connect to Google Drive
+            </paper-item>
+            <paper-item id="disconnectCloudItem" on-tap="disconnectCloud" hidden$="[[!isConnectCloudItemHidden(cloudStatus)]]">
+              Disconnect from Google Drive
+            </paper-item>
+            </iron-pages>
           </paper-menu>
         </paper-header-panel>
 
@@ -93,14 +95,18 @@
             </div>
 
             <!-- TODO: Reconsider these status messages -->
-            <iron-pages attr-for-selected="status" selected="{{cloudStatus}}" fallback-selection="loading">
-              <a status="unavailable" class="cloud-status">Google Drive is not available</a>
+            <iron-pages attr-for-selected="status" selected="[[cloudStatus]]" fallback-selection="loading">
               <a status="loading" class="cloud-status">Loading Google Drive support…</a>
-              <a status="loaded" class="cloud-status">Last modified at [[lastCloudModificationTime]]</a>
-              <a status="ready-to-connect" class="cloud-status">
-                <paper-item on-tap="startDriveIntegration">Ready to connect to Drive</paper-item>
+              <a status="unavailable" class="cloud-status">Google Drive is not available</a>
+              <a status="unauthorized" class="cloud-status" on-tap="connectCloud">
+                <paper-item>Connect to Google Drive</paper-item>
               </a>
-              <!-- <paper-icon-button status="off" icon="cloud-off" on-tap="startDriveIntegration"></paper-icon-button> -->
+              <a status="authorizing" class="cloud-status">Connecting to Google Drive…</a>
+              <a status="ready-to-sync" class="cloud-status" on-tap="startCloudIntegration">
+                <paper-item>Ready to save to Drive</paper-item>
+              </a>
+              <a status="loaded" class="cloud-status">Last modified at [[lastCloudModificationTime]]</a>
+              <!-- <paper-icon-button status="off" icon="cloud-off" on-tap="startCloudIntegration"></paper-icon-button> -->
               <a status="dirty" class="cloud-status">There are unsaved changes</a>
               <a status="saving" class="cloud-status">Saving…</a>
               <a status="saved" class="cloud-status">All changes saved in Drive</a>

@@ -2,7 +2,15 @@ const CLIENT_ID = '707726290441-2t740vcema93b7jad2acqiku87qe25s6.apps.googleuser
 const SCOPES = ['https://www.googleapis.com/auth/drive.install',
                 'https://www.googleapis.com/auth/drive.file'];
 
-const AUTH_PARAMS = {
+const AUTH_PARAMS_POPUP = {
+  client_id: CLIENT_ID,
+  scope: SCOPES,
+  immediate: false,
+  cookie_policy: 'single_host_origin',
+  response_type: 'token id_token'
+};
+
+const AUTH_PARAMS_IMMEDIATE = {
   client_id: CLIENT_ID,
   scope: SCOPES,
   immediate: true
@@ -14,13 +22,32 @@ class Auth {
     this.auth = auth;
   }
 
-
-  authorize(callback) {
-    this.auth.authorize(AUTH_PARAMS, callback);
+  authorize() {
+    return new Promise((resolve, reject) => {
+      this.auth.authorize(AUTH_PARAMS_POPUP, token => {
+        if (token.error) {
+          reject(token);
+        } else {
+          resolve(token);
+        }
+      });
+    });
   }
 
-  static _authorize(auth, callback) {
-    auth.authorize(AUTH_PARAMS, callback);
+  authorizeImmediate() {
+    return new Promise((resolve, reject) => {
+      this.auth.authorize(AUTH_PARAMS_IMMEDIATE, token => {
+        if (token.error) {
+          reject(token);
+        } else {
+          resolve(token);
+        }
+      });
+    });
+  }
+
+  static authorizeImmediateWith(auth) {
+    return new Auth(auth).authorizeImmediate();
   }
 
 }
@@ -33,17 +60,25 @@ class Realtime {
     this.auth = auth;
   }
 
-  load(fileId, onLoaded, opt_initializerFn, opt_errorFn) {
+  load(fileId, onLoaded, opt_initializerFn, opt_errorFn, opt_refreshAuthErrorFn) {
     return this.api.load(fileId, onLoaded, opt_initializerFn, e => {
-
       if (e.type === this.realtime.ErrorType.TOKEN_REFRESH_REQUIRED) {
         console.log('Reauthorizing...');
-        this.auth.authorize(_ => {
-          console.log('Reauthorized.');
-          this.api.load(fileId, onLoaded, opt_initializerFn, e => {
-            console.error(`Failed to load realtime document for file ${fileId} after attempting reauthorization.`, e);
-            opt_errorFn(e);
-          });
+        this.auth.authorize(token => {
+          if (token.error) {
+            console.error('Failed to reauthorize.', token);
+            if (opt_refreshAuthErrorFn) {
+              opt_refreshAuthErrorFn(token);
+            }
+          } else {
+            console.log('Reauthorized.');
+            this.api.load(fileId, onLoaded, opt_initializerFn, e => {
+              console.error(`Failed to load realtime document for file ${fileId} after attempting reauthorization.`, e);
+              if (opt_errorFn) {
+                opt_errorFn(e);
+              }
+            });
+          }
         });
 
       } else {
