@@ -32,19 +32,18 @@ import CompilationService from './compilationservice';
 
   app.filename = 'untitled.tex';
   app.isCompiling = false;
+
   app.codeMirrorOptions = {
     mode: 'stex',
     lineWrapping: true,
     lineNumbers: true
   };
 
-  // Seems like hidden$=[[!undefined]] evaluates to hidden=false somehow
-  app.fileId = null;
-
   // app properties written: webViewLink, fileId
   app.endDriveIntegration = () => {
     app.webViewLink = undefined;
-    app.fileId = null;
+    app.fileId = undefined;
+    app.lastCloudModificationTime = undefined;
   };
 
   window.addEventListener('WebComponentsReady', () => {
@@ -60,6 +59,8 @@ import CompilationService from './compilationservice';
     var compileLogTextArea = Polymer.dom(document).querySelector('#compileLogTextArea');
 
     var apiErrorToast = Polymer.dom(document).querySelector('#apiErrorToast');
+
+    var googleSignIn = Polymer.dom(document).querySelector('#googleSignIn');
 
     compileLog.fitInto = preview;
     app.toggleCompileLog = _ => {
@@ -128,9 +129,11 @@ import CompilationService from './compilationservice';
     });
 
     var drawerPanel = Polymer.dom(document).querySelector('#drawerPanel');
-    app.doSaveItemAction = e => {
-      drawerPanel.closeDrawer();
-      app.doSave(e);
+    app.doSaveItemAction = (...args) => {
+      if (app.fileId) {
+        drawerPanel.closeDrawer();
+        app.doManualSave(...args);
+      }
     };
 
     // used by #helloWorldItem
@@ -142,25 +145,35 @@ import CompilationService from './compilationservice';
       drawerPanel.closeDrawer();
     };
 
-    var notifySaved = (name, opt_isAutosave) => {
-      if (opt_isAutosave) {
-        app.savedMessage = 'Saved ' + name + ' at ' + new Date();
-      } else {
-        app.savedMessage = 'Saved ' + name + ' at ' + new Date();
-      }
-    };
-
-    app.doSave = e => {
-      editor.save().then(_ => notifySaved(editor.name),
-                         r => app.apiErrorMessage = r.error.message);
-    };
-
-    editor.addEventListener('cloud-ready', _ => {
+    app.startDriveIntegration = () => {
       editor.startDriveIntegration();
+    };
+
+    editor.addEventListener('cloud-ready', () => {
     });
 
-    // app properties read: fileId
-    // app properties written: fileId, webViewLink, doSave
+    editor.addEventListener('cloud-file-loaded', e => {
+      var {id, name, webViewLink, createdTime, modifiedTime} = e.detail.result;
+      if (createdTime) {
+        app.savedMessage = `Created ${name} at ${new Date(createdTime)}`;
+      }
+      if (modifiedTime) {
+        app.lastCloudModificationTime = new Date(modifiedTime);
+      }
+
+      app.doManualSave = (e, detail) => {
+        editor.save().then(
+          _ => app.savedMessage = `Saved ${name} at ${new Date()}`,
+          r => app.apiErrorMessage = r.error.message);
+        // workaround for e.preventDefault() for ctrl+s
+        detail.keyboardEvent.preventDefault();
+      };
+    });
+
+    app.maybeStartDriveIntegration = () => {
+      // TODO: drive integration from google signin
+    };
+
   }); // WebComponentsReady
 
 })(document);

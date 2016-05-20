@@ -57,7 +57,7 @@
     <!-- endbuild -->
 
     <template is="dom-bind" id="app">
-      <iron-a11y-keys target="[[a11yTarget]]" keys="ctrl+s" on-keys-pressed="doSave"></iron-a11y-keys>
+      <iron-a11y-keys target="[[a11yTarget]]" keys="ctrl+s" on-keys-pressed="doManualSave"></iron-a11y-keys>
 
       <paper-drawer-panel id="drawerPanel" force-narrow>
 
@@ -71,7 +71,7 @@
             <hr>
             <paper-item id="helloWorldItem" on-tap="doHelloWorld">Hello, world!</paper-item>
             <hr>
-            <google-signin width="wide" height="tall" theme="dark"
+            <google-signin id="googleSignIn" width="wide" height="tall" theme="dark"
                            client-id="707726290441-2t740vcema93b7jad2acqiku87qe25s6.apps.googleusercontent.com"
                            scopes="https://www.googleapis.com/auth/drive.install https://www.googleapis.com/auth/drive.file"
                            on-google-signin-success="maybeStartDriveIntegration"
@@ -86,13 +86,21 @@
             <paper-icon-button icon="menu" paper-drawer-toggle></paper-icon-button>
             <div class="title">
               <!-- TODO: tooltips? -->
+              <!-- TODO: change filename -->
               <iron-a11y-keys target="[[filenameTarget]]" keys="enter" on-keys-pressed="maybeUpdateFilename"></iron-a11y-keys>
               <autogrow-input id="filenameInput" class="editable-title" placeholder="untitled.tex" value="{{filename}}" focused-changed="maybeUpdateFilename"></autogrow-input>
               <div class="flex" style="min-width: 8px"></div>
             </div>
 
-            <iron-pages attr-for-selected="status" selected="[[cloudStatus]]" fallback-selection="off">
-              <paper-icon-button status="off" icon="cloud-off" on-tap="startDriveIntegration"></paper-icon-button>
+            <!-- TODO: Reconsider these status messages -->
+            <iron-pages attr-for-selected="status" selected="{{cloudStatus}}" fallback-selection="loading">
+              <a status="unavailable" class="cloud-status">Google Drive is not available</a>
+              <a status="loading" class="cloud-status">Loading Google Drive support…</a>
+              <a status="loaded" class="cloud-status">Last modified at [[lastCloudModificationTime]]</a>
+              <a status="ready-to-connect" class="cloud-status">
+                <paper-item on-tap="startDriveIntegration">Ready to connect to Drive</paper-item>
+              </a>
+              <!-- <paper-icon-button status="off" icon="cloud-off" on-tap="startDriveIntegration"></paper-icon-button> -->
               <a status="dirty" class="cloud-status">There are unsaved changes</a>
               <a status="saving" class="cloud-status">Saving…</a>
               <a status="saved" class="cloud-status">All changes saved in Drive</a>
@@ -111,9 +119,11 @@
 
           <div id="mainContent" class="fit vertical layout">
             <div id="contentArea" class="flex horizontal layout">
-              <gtex-cloud-editor id="editor" class="flex" name="{{filename}}" editor-options="[[codeMirrorOptions]]" no-cloud></gtex-cloud-editor>
+              <gtex-cloud-editor id="editor" class="flex" name="{{filename}}" editor-options="[[codeMirrorOptions]]"
+                                 cloud-status="{{cloudStatus}}" web-view-link="{{webViewLink}}"></gtex-cloud-editor>
 
               <div id="preview" class="flex vertical layout">
+                <!-- TODO: Refactor out the compilation? -->
                 <paper-progress indeterminate id="compileProgress" style="width: inherit" hidden$="[[!isCompiling]]"></paper-progress>
                 <iframe id="previewIFrame" src="about:blank" class="flex center"></iframe>
                 <paper-dialog no-cancel-on-outside-click id="compileLog">
@@ -135,7 +145,7 @@
       <!-- TODO: Improve UX for authorizing Google services -->
       <!-- TODO: Where should these toasts go? -->
       <paper-toast id="savedToast" text="[[savedMessage]]" opened="[[savedMessage]]">
-        <a href$="[[webViewLink]]">
+        <a href$="[[webViewLink]]" target="_blank">
           <paper-button class="toast-action">View in Drive</paper-button>
         </a>
       </paper-toast>
@@ -146,7 +156,6 @@
     <!-- Workaround for texlivejs not using a promise dependency -->
     <script src="//cdnjs.cloudflare.com/ajax/libs/es6-promise/3.2.1/es6-promise.min.js"></script>
     <script src="bower_components/texlivejs/pdftex.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/mode/stex/stex.js"></script>
     <script src="scripts/app.js"></script>
     <!-- endbuild -->
   </body>

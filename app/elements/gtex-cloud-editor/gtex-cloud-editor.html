@@ -8,6 +8,7 @@
 <dom-module id="gtex-cloud-editor">
   <style>
   </style>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/mode/stex/stex.js"></script>
   <template>
     <gtex-code-textarea id="editor" class="flex" editor-options="{{editorOptions}}" animated="true"></gtex-code-textarea>
     <google-client-loader id="driveApiLoader" name="drive" version="v3"></google-client-loader>
@@ -24,6 +25,11 @@
      * @event cloud-ready
      */
 
+    /**
+     * Fired when the Google Drive file is created/found.
+     * @event cloud-file-loaded
+     */
+
     properties: {
       editorOptions: {
         type: Object,
@@ -32,17 +38,25 @@
 
       noCloud: Boolean,
 
+      cloudStatus: {
+        type: String,
+        readOnly: true,
+        notify: true,
+      },
+
+      fileId: {
+        type: String,
+        readOnly: true,
+        notify: true
+      },
       name: {
         type: String,
         notify: true
       },
-      fileId: {
-        type: String,
-        readOnly: true
-      },
       webViewLink: {
         type: String,
-        readOnly: true
+        readOnly: true,
+        notify: true
       }
     },
 
@@ -63,6 +77,8 @@
       console.log('Loading Google APIs...');
     },
 
+    // Google API Integration
+
     _initGoogle: function () {
       var realtimePromise;
       if (this.$.realtimeApiLoader.libraryLoaded) {
@@ -72,6 +88,7 @@
           this.$.realtimeApiLoader.addEventListener('api-load', e =>
             resolve(new Realtime(e.target.api), new Auth(window.gapi.auth)));
 
+          // TODO: consider UX for case when realtime is unavailable
           this.$.realtimeApiLoader.addEventListener(
             'library-error-message-changed', e => reject(e.detail.value));
         });
@@ -80,23 +97,29 @@
       var drivePromise = new Promise((resolve, reject) => {
         this.$.driveApiLoader.addEventListener('google-api-load', e =>
           Auth._authorize(e.target.auth, _ =>
-            resolve(new Drive(e.target.api), window.gapi)));
+            resolve(new Drive(e.target.api, window.gapi))));
 
-        this.$.driveApiLoader.addEventListener('google-api-load-error',
-                                               e => reject(e.detail.value));
+        this.$.driveApiLoader.addEventListener(
+          'google-api-load-error',
+          e => {
+            reject(e.detail.value);
+            this._setCloudStatus('unavailable');
+        });
       });
 
-      ([drivePromise, realtimePromise]).then(([driveApi, realtimeApi]) => {
-        this.realtime = new Realtime(realtimeApi, new Auth(window.gapi.auth));
-        this.drive = new Drive(driveApi, window.gapi);
+      Promise.all([drivePromise, realtimePromise]).then(([drive, realtime]) => {
+        console.log('Loaded Google APIs.')
+        this.drive = drive;
+        this.realtime = realtime;
+        this._setCloudStatus('ready-to-connect');
         this.fire('cloud-ready');
       });
     },
 
-    // Google API Integration
-
     ready: function () {
-      if (!this.noCloud) {
+      if (this.noCloud) {
+        this._setCloudStatus('unavailable');
+      } else {
         this._initGoogle();
       }
     },
@@ -107,20 +130,18 @@
       }
     },
 
-    nameChanged: function (newName) {
-      console.log(`New name: ${newName}`);
-    },
-
     startDriveIntegration: function () {
       this.checkCloud();
 
       var initializeModel = model => {
+        console.log('Initializing model...');
         var string = model.createString();
         string.setText('');
         model.getRoot().set('PolyTeX-data', string);
       };
 
       var wire = doc => {
+        console.log('Enabling realtime in components...');
         var model = doc.getModel();
         var collaborativeString = model.getRoot().get('PolyTeX-data');
         var codeMirror = this.$.editor.codeMirror;
@@ -138,6 +159,9 @@
             doc.replaceRange('', start, end);
         });
         codeMirror.on('change', (_, e) => {
+          if (this.fileId) {
+            this._setCloudStatus('dirty');
+          }
           model.beginCompoundOperation();
           for (let line = e.from.line; line < e.to.line; line++) {
             var start = codeMirrorDoc.indexFromPos({line: line, ch: e.from.ch});
@@ -149,14 +173,20 @@
         });
       };
 
-      this.drive.createTeXFile(this.name, {fields: 'id,name,webViewLink'})
-          .then(response => {
+      this._setCloudStatus('saving');
+      this.drive.createTeXFile(this.name, {fields: 'id,name,webViewLink,createdTime'}).then(response => {
+        this.fire('cloud-file-loaded', response);
+
         console.log('Created Google Drive file: ' + response.result.name, response);
 
-        this.fileId = response.result.id;
-        this.webViewLink = response.result.webViewLink;
+        this._setFileId(response.result.id);
+        this._setWebViewLink(response.result.webViewLink);
+
+        this.save();
 
         // start the realtime functionality
+        // TODO: realtime can be orthogonal from saving to drive
+        console.log('Connecting realtime API...');
         this.realtime.load(response.result.id, wire, initializeModel,
                            e => app.apiErrorMessage = e.toString());
       });
@@ -165,14 +195,32 @@
     save: function () {
       this.checkCloud();
 
-      // use the realtime model data instead?
-      return this.drive.saveTeXFile(app.fileId, editor.getValue()).then(response => {
+      this._setCloudStatus('saving');
+
+      // XXX use the realtime model data instead?
+      return this.drive.saveTeXFile(this.fileId, this.getValue()).then(response => {
+        if (this.cloudStatus === 'saving') {
+          // did not become dirty after beginning save
+          this._setCloudStatus('saved');
+        }
         console.log('Saved.', response);
+        return response;
       }, response => {
+        this._setCloudStatus('dirty');
         console.error('Cannot save file.', response);
         throw response;
       });
     },
+
+    nameChanged: function (newName) {
+      if (this.noCloud) {
+        return;
+      }
+      // TODO: filename change
+      console.log(`New name: ${newName}`);
+    },
+
+
 
   });
 </script>

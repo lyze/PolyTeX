@@ -1,41 +1,25 @@
-<!-- Modified by David Xu, 2016 -->
-<!--
-@license
-Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
--->
+<!-- Copyright David Xu, 2016 -->
 
 <script src="../bower_components/page/page.js"></script>
 <script>
   // TODO: Routes are not currently being used
-  window.addEventListener('WebComponentsReady', function() {
+  window.addEventListener('WebComponentsReady', function () {
 
     // Removes end / from app.baseUrl which page.base requires for production
     if (window.location.port === '') {  // if production
       page.base(app.baseUrl.replace(/\/$/, ''));
     }
 
-    function closeDrawer(ctx, next) {
-      app.$.drawerPanel.closeDrawer();
-      next();
-    }
-
-    // Routes
-    page('*', closeDrawer, (ctx, next) => {
-      next();
-    });
-
     page('/', () => {
       app.route = 'editor';
     });
 
+    page('/:fileId', () => {
+      app.fileId = ctx.params.fileId;
+    });
+
     page(app.baseUrl, () => {
       app.route = 'editor';
-      setFocus(app.route);
     });
 
     // 404
@@ -43,11 +27,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       app.$.toast.text = 'Can\'t find: ' + window.location.href  + '. Redirected you to Home Page';
       app.$.toast.show();
       page.redirect(app.baseUrl);
-    });
-
-    // add #! before urls
-    page({
-      hashbang: true
     });
 
   });
