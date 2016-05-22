@@ -300,20 +300,20 @@ var CompilationService = function () {
     // no-op; actual implementation defined later when app is ready.
   };
 
-  app.isConnectCloudItemDisabled = function (cloudStatus) {
+  app.isCloudReady = function (cloudStatus) {
     return ['loading', 'unavailable', 'authorizing'].includes(cloudStatus);
   };
 
-  app.isConnectCloudItemHidden = function (cloudStatus) {
-    return !['loading', 'unavailable', 'unauthorized', 'authorizing'].includes(cloudStatus);
+  app.isCloudConnected = function (cloudStatus) {
+    return app.isCloudReady(cloudStatus) || cloudStatus === 'unauthorized';
   };
 
   app.isCloudFileConnected = function (cloudStatus) {
-    return ['loaded', 'dirty', 'saving', 'saved'].includes(cloudStatus);
+    return ['loaded', 'loaded-read-only', 'dirty', 'saving', 'saved'].includes(cloudStatus);
   };
 
   var editorHasCloudFile = function editorHasCloudFile() {
-    return ['loaded', 'dirty', 'saving', 'saved'].includes(app.cloudStatus);
+    return ['loaded', 'loaded-read-only', 'dirty', 'saving', 'saved'].includes(app.cloudStatus);
   };
 
   // Listen for template bound event to know when bindings have resolved and

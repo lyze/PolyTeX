@@ -68,10 +68,10 @@
             <paper-item id="helloWorldItem" on-tap="doHelloWorld">Hello, world!</paper-item>
             <hr>
             <paper-item selected="unauthorized" id="connectCloudItem" on-tap="connectCloud"
-                        disabled="[[isConnectCloudItemDisabled(cloudStatus)]]" hidden$="[[isConnectCloudItemHidden(cloudStatus)]]">
+                        disabled="[[isCloudReady(cloudStatus)]]" hidden$="[[!isCloudConnected(cloudStatus)]]">
               Connect to Google Drive
             </paper-item>
-            <paper-item id="disconnectCloudItem" on-tap="disconnectCloud" hidden$="[[!isConnectCloudItemHidden(cloudStatus)]]">
+            <paper-item id="disconnectCloudItem" on-tap="disconnectCloud" hidden$="[[isCloudConnected(cloudStatus)]]">
               Disconnect from Google Drive
             </paper-item>
             </iron-pages>
