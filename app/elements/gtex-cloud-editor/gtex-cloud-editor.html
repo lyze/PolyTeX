@@ -40,6 +40,7 @@
 
       name: {
         type: String,
+        readOnly: true,
         notify: true
       },
 
@@ -51,11 +52,10 @@
 
 
       /**
-       * The ID of the file.
+       * The ID of the file. If changed, will attempt to load the new file.
        */
       fileId: {
         type: String,
-        readOnly: true,
         notify: true
       },
 
@@ -66,11 +66,29 @@
         type: String,
         readOnly: true,
         notify: true
-      }
+      },
+
+      /**
+       * The last modified time in Drive.
+       */
+      lastCloudModifiedTime: {
+        type: Date,
+        readOnly: true,
+        notify: true
+      },
+
+      /**
+       * The error message from the API.
+       */
+      apiError: {
+        type: Object,
+        readOnly: true,
+        notify: true
+      },
     },
 
     listeners: {
-      'name-changed': 'nameChanged',
+      'file-id-changed': '_fileIdChanged',
     },
 
 
@@ -89,17 +107,16 @@
     // TODO: Consider using gapi.auth2 to handle multiple logins more easily.
 
     connectCloud() {
-      if (this.cloudStatus !== 'unauthorized') {
-        return;
-      }
-
-      return this._tryConnectGoogleSilentlyOrDie().catch(_ => {
-        console.log('Authorizing Google APIs...');
-        this.auth.authorize().then(_ => {
+      return this._initialized.catch(_ => {
+        console.log('Authorizing Google APIs (popup)...');
+        return this.auth.authorize().then(token => {
           this._setCloudStatus('ready-to-sync');
+          return token;
         }, token => {
           console.error('Authorization failed.', token);
           this._setCloudStatus('unauthorized');
+          this._setApiError();
+          this._setApiError('Authorization failed.');
           throw token;
         });
       });
@@ -158,16 +175,19 @@
         });
       });
 
-      Promise.all([drivePromise, realtimePromise]).then(([drive, realtime]) => {
+      return Promise.all([drivePromise, realtimePromise]).then(([drive, realtime]) => {
         console.log('Loaded Google APIs.')
         this.drive = drive;
         this.realtime = realtime;
         this.auth = new Auth(this._gapi.auth);
-        this._tryConnectGoogleSilentlyOrDie().catch(token => {
+
+        var p = this._tryConnectGoogleSilentlyOrDie();
+        p.catch(token => {
           console.log('Failed to authorize silently. A login is required.',
                       token);
           this._setCloudStatus('unauthorized');
         });
+        return p;
       });
     },
 
@@ -175,7 +195,7 @@
       if (this.noCloud) {
         this._setCloudStatus('unavailable');
       } else {
-        this._initGoogle();
+        this._initialized = this._initGoogle();
       }
     },
 
@@ -187,6 +207,7 @@
         throw new Error('Google API is not loaded.');
       }
       if (this.cloudStatus === 'unauthorized') {
+        this._setApiError('Google Drive API is not authorized.');
         throw new Error('Google Drive API is not authorized.');
       }
     },
@@ -198,48 +219,72 @@
 
     endCloudIntegration: function () {
       this.checkCloud();
+
+      this._collaborativeString.removeEventListener(
+        this.realtime.api.EventType.TEXT_INSERTED,
+        this._realtimeCollaborativeInsertionListener);
+
+      this._collaborativeString.removeEventListener(
+        this.realtime.api.EventType.TEXT_DELETED,
+        this._realtimeCollaborativeDeletionListener);
+
+      this.$.editor.codeMirror.off('change', this._realtimeCodeMirrorListener);
+
       console.log('Signing out...');
       this._gapi.auth.signOut();
       console.log('Signed out.');
+
       this._setCloudStatus('unauthorized');
       this._setFileId(null);
       this._setWebViewLink(null);
       this._immediateLoginFailed = null;
     },
 
-    startCloudIntegration: function () {
-      this.checkCloud();
+    _resetRealtime: function () {
+      if (this._realtimeDocument) {
+        this._realtimeDocument.close();
+      }
+      this.$.editor.codeMirror.off('change', this._realtimeCodeMirrorListener);
+    },
 
-      this.connectCloud();
-
-      console.assert(this._gapi.auth.getToken(), 'auth token should exist');
-
-      var initializeModel = model => {
+    _loadRealtime: function () {
+      console.log('Connecting realtime API...');
+      // TODO: realtime can be orthogonal from saving to drive
+      const initializeModel = model => {
         console.log('Initializing model...');
         var string = model.createString();
         string.setText('');
         model.getRoot().set('PolyTeX-data', string);
       };
 
-      var wire = doc => {
-        console.log('Enabling realtime in components...');
+      const _realtimeOnLoaded = doc => {
+        console.log('Loading realtime for editor components...');
+        this._realtimeDocument = doc;
         var model = doc.getModel();
         var collaborativeString = model.getRoot().get('PolyTeX-data');
+        this._collaborativeString = collaborativeString;
         var codeMirror = this.$.editor.codeMirror;
         var codeMirrorDoc = codeMirror.getDoc();
+
+        this._realtimeCollaborativeInsertionListener = e => {
+          var pos = codeMirrorDoc.posFromIndex(e.index);
+          // performs an insertion if you call it with only one position argument
+          doc.replaceRange(e.text, pos);
+        };
         collaborativeString.addEventListener(
-          this.realtime.api.EventType.TEXT_INSERTED, e => {
-            var pos = codeMirrorDoc.posFromIndex(e.index);
-            // performs an insertion if you call it with only one position argument
-            doc.replaceRange(e.text, pos);
-        });
+          this.realtime.api.EventType.TEXT_INSERTED,
+          this._realtimeCollaborativeInsertionListener);
+
+        this._realtimeCollaborativeDeletionListener = e => {
+          var start = codeMirrorDoc.posFromIndex(e.index);
+          var end = codeMirrorDoc.posFromIndex(e.index + e.text.length);
+          doc.replaceRange('', start, end);
+        };
         collaborativeString.addEventListener(
-          this.realtime.api.EventType.TEXT_DELETED, e => {
-            var start = codeMirrorDoc.posFromIndex(e.index);
-            var end = codeMirrorDoc.posFromIndex(e.index + e.text.length);
-            doc.replaceRange('', start, end);
-        });
-        codeMirror.on('change', (_, e) => {
+          this.realtime.api.EventType.TEXT_DELETED,
+          this._realtimeCollaborativeDeletionListener);
+
+        this._realtimeCodeMirrorListener = (_, e) => {
           if (this.fileId) {
             this._setCloudStatus('dirty');
           }
@@ -251,32 +296,75 @@
             collaborativeString.insertString(start, e.text[line - e.from.line]);
           }
           model.endCompoundOperation();
-        });
+        };
+        codeMirror.on('change', this._realtimeCodeMirrorListener);
+        console.log('Loaded realtime components.');
       };
 
-      this._setCloudStatus('saving');
-      this.drive.createTeXFile(this.name, {fields: 'id,name,webViewLink,createdTime'}).then(response => {
-        this.fire('cloud-file-loaded', response);
+      this.realtime.load(this.fileId, _realtimeOnLoaded, initializeModel, e => {
+        this._setApiError(e);
+      }, e => {
+        this._setApiError('Failed to reauthorize for Google services.');
+      });
+    },
 
+    _createNewCloudFile: function () {
+
+      this._setCloudStatus('saving');
+      return this.drive.createTeXFile(this.name, {fields: 'id,name,webViewLink,createdTime'}).then(response => {
         console.log('Created Google Drive file: ' + response.result.name, response);
 
         this._setFileId(response.result.id);
         this._setWebViewLink(response.result.webViewLink);
+        this.fire('cloud-file-loaded', response);
 
         this.save();
 
-        // start the realtime functionality
-        // TODO: realtime can be orthogonal from saving to drive
-        console.log('Connecting realtime API...');
-        this.realtime.load(
-          response.result.id, wire, initializeModel,
-          e => app.apiErrorMessage = e,
-          e => {
-            apiErrorToast.duration = 0;
-            app.apiErrorMessage = 'Failed to reauthorize for Google services.'
-         });
-      }, e => console.error(e));
+
+        this._loadRealtime();
+
+      }, errorResponse => {
+        this._setApiError(errorResponse.result.error.message);
+      });
     },
+
+
+    _findCloudFile: function () {
+      this._setCloudStatus('loading-file')
+      return this.drive.loadFile(this.fileId, {fields: 'id,name,webViewLink,modifiedTime,capabilities'}).then(([metadataResponse, downloadResponse]) => {
+        console.log('Retrieved drive file metadata.', metadataResponse);
+        console.log('Retrieved drive file content.', downloadResponse);
+        console.assert(this.fileId === metadataResponse.result.id,
+                       'Drive API file ID response should be the same as requested');
+        // if the assertion fails, then the file ID change event triggers again
+        this.fileId = metadataResponse.result.id;
+        this._setName(metadataResponse.result.name);
+        this._setWebViewLink(metadataResponse.result.webViewLink);
+        this._setLastCloudModifiedTime(new Date(metadataResponse.result.modifiedTime));
+        this._cloudEditable = metadataResponse.result.capabilities.canEdit;
+
+        this.$.editor.setValue(downloadResponse.body);
+
+        if (this._cloudEditable) {
+          this._loadRealtime(); // not blocking but notify 'loaded' regardless
+          this._setCloudStatus('loaded');
+          this.fire('cloud-file-loaded', metadataResponse);
+        } else {
+          this._setCloudStatus('loaded-read-only');
+        }
+      }, errorResponse => {
+        this._setApiError(errorResponse.result.error.message);
+      });
+    },
+
+
+    startCloudIntegration: function () {
+      return this.connectCloud().then(_ => {
+        this._resetRealtime();
+        return this.fileId ? this._findCloudFile() : this._createNewCloudFile();
+      });
+    },
+
 
     save: function () {
       this.checkCloud();
@@ -297,19 +385,40 @@
           this._setCloudStatus('dirty');
         }
         console.error('Cannot save file.', response);
+        this._setApiError(response.error.message);
         throw response;
       });
     },
 
-    nameChanged: function (newName) {
+
+    rename: function (newName) {
       if (this.noCloud) {
         return;
       }
-      // TODO: implement renaming the drive file
-      console.log(`New name: ${newName}`);
+      // TODO UI for (un)successful rename?
+      this.drive.renameFile(this.fileId, newName, {fields: 'modifiedTime'}).then(response => {
+        console.log('File renamed.', response);
+        this._setLastCloudModifiedTime(new Date(response.result.modifiedTime));
+      });
     },
 
 
+    _fileIdChanged: function (e) {
+      if (this.noCloud) {
+        return;
+      }
+      var newId = e.detail.value;
+      this._initialized.then(_ => {
+        console.log('id', this.fileId);
+        this.startCloudIntegration();
+      }).catch(e => {
+        if (this.cloudStatus === 'unauthorized' && this.fileId) {
+          this._setApiError('Connect with Drive to view the file.');
+        } else {
+          throw e;
+        }
+      });
+    },
 
   });
 </script>

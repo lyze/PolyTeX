@@ -11,13 +11,6 @@ import CompilationService from './compilationservice';
 
   app.a11yTarget = document.body;
 
-  app.baseUrl = '/';
-  if (window.location.port === '') {  // if production
-    // Uncomment app.baseURL below and
-    // set app.baseURL to '/your-pathname/' if running from folder in production
-    app.baseUrl = '/PolyTeX/';
-  }
-
   app.displayInstalledToast = () => {
     // Check to make sure caching is actually enabled—it won't be in the dev environment.
     if (!Polymer.dom(document).querySelector('platinum-sw-cache').disabled) {
@@ -29,13 +22,17 @@ import CompilationService from './compilationservice';
     // no-op; actual implementation defined later when app is ready.
   };
 
-  app.isConnectCloudItemDisabled = cloudStatus =>
+  app.isCloudReady = cloudStatus =>
     ['loading', 'unavailable', 'authorizing'].includes(cloudStatus);
 
-  app.isConnectCloudItemHidden = cloudStatus =>
-    !['loading', 'unavailable', 'unauthorized', 'authorizing'].includes(
-      cloudStatus);
+  app.isCloudConnected = cloudStatus =>
+    app.isCloudReady(cloudStatus) || cloudStatus === 'unauthorized';
 
+  app.isCloudFileConnected = cloudStatus =>
+    ['loaded', 'loaded-read-only', 'dirty', 'saving', 'saved'].includes(cloudStatus);
+
+  const editorHasCloudFile = () =>
+    ['loaded', 'loaded-read-only', 'dirty', 'saving', 'saved'].includes(app.cloudStatus);
 
   // Listen for template bound event to know when bindings have resolved and
   // content has been stamped to the page
@@ -53,7 +50,7 @@ import CompilationService from './compilationservice';
 
 
   window.addEventListener('WebComponentsReady', () => {
-    var filenameTextArea = Polymer.dom(document).querySelector('#filenameTextArea');
+    var filenameInput = Polymer.dom(document).querySelector('#filenameInput');
 
     var editor = Polymer.dom(document).querySelector('#editor');
     var generatePreviewButton = Polymer.dom(document).querySelector('#generatePreviewButton');
@@ -66,7 +63,11 @@ import CompilationService from './compilationservice';
 
     var apiErrorToast = Polymer.dom(document).querySelector('#apiErrorToast');
 
-    var googleSignIn = Polymer.dom(document).querySelector('#googleSignIn');
+
+    app.updateFilename = (e, detail) => {
+      filenameInput.input.blur();
+      editor.rename(filenameInput.value);
+    };
 
     compileLog.fitInto = preview;
     app.toggleCompileLog = _ => {
@@ -136,7 +137,7 @@ import CompilationService from './compilationservice';
 
     var drawerPanel = Polymer.dom(document).querySelector('#drawerPanel');
     app.doSaveItemAction = (...args) => {
-      if (app.fileId) {
+      if (editorHasCloudFile()) {
         drawerPanel.closeDrawer();
         app.doManualSave(...args);
       }
@@ -153,9 +154,14 @@ import CompilationService from './compilationservice';
 
     app.connectCloud = () => {
       drawerPanel.closeDrawer();
-      editor.connectCloud().catch(_ => {
-        app.apiErrorMessage = 'Failed to connect to Google Drive.';
-      });
+      if (app.fileId) {
+        editor.startCloudIntegration();
+      } else {
+        editor.connectCloud().catch(_ => {
+        // no-op
+        // app.apiErrorMessage = 'Failed to connect to Google Drive.';
+        });
+      }
     };
 
     app.disconnectCloud = () => {
@@ -169,7 +175,6 @@ import CompilationService from './compilationservice';
 
     app.endCloudIntegration = () => {
       app.webViewLink = null;
-      app.fileId = null;
       app.lastCloudModificationTime = null;
       editor.endCloudIntegration();
     };
@@ -194,10 +199,6 @@ import CompilationService from './compilationservice';
         detail.keyboardEvent.preventDefault();
       };
     });
-
-    app.maybeStartCloudIntegration = () => {
-      // TODO: drive integration from google signin
-    };
 
   }); // WebComponentsReady
 

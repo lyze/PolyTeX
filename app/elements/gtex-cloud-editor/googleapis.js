@@ -1,13 +1,12 @@
 const CLIENT_ID = '707726290441-2t740vcema93b7jad2acqiku87qe25s6.apps.googleusercontent.com';
-const SCOPES = ['https://www.googleapis.com/auth/drive.install',
-                'https://www.googleapis.com/auth/drive.file'];
+const SCOPES = ['https://www.googleapis.com/auth/drive'];
+// TODO incremental authorization for specific scopes
+
 
 const AUTH_PARAMS_POPUP = {
   client_id: CLIENT_ID,
   scope: SCOPES,
-  immediate: false,
-  cookie_policy: 'single_host_origin',
-  response_type: 'token id_token'
+  immediate: false
 };
 
 const AUTH_PARAMS_IMMEDIATE = {
@@ -96,14 +95,32 @@ class Drive {
     this.gapi = gapi;
   }
 
+  loadFile(fileId, opt_overrideParams) {
+    var params = {fileId: fileId};
+    return this.drive.files.get(Object.assign(params, opt_overrideParams)).then(metadataResponse => {
+      return this.drive.files.get({
+        fileId: fileId,
+        alt: 'media'
+      }).then(downloadResponse => {
+        return [metadataResponse, downloadResponse];
+      }, response => {
+        console.error('Cannot download file.', response);
+        throw response;
+      });
+    }, response => {
+      console.error('Cannot get file metadata.', response);
+      throw response;
+    });
+  }
+
   createTeXFile(name, opt_overrideParams) {
     // TODO: investigate multipart upload to create with content in one request
-    var opts = {
+    var params = {
       name: name,
       mimeType: 'application/x-tex',
       useContentAsIndexableText: true
     };
-    return this.drive.files.create(Object.assign(opts, opt_overrideParams));
+    return this.drive.files.create(Object.assign(params, opt_overrideParams));
   }
 
   saveTeXFile(fileId, content, opt_overrideParams) {
@@ -120,5 +137,13 @@ class Drive {
       },
       body: content
     });
+  }
+
+  renameFile(fileId, newName, opt_overrideParams) {
+    var params = {
+      fileId: fileId,
+      name: newName
+    };
+    return this.drive.files.update(Object.assign(params, opt_overrideParams));
   }
 };

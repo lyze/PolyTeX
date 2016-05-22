@@ -16,22 +16,22 @@
     <!-- Web Application Manifest -->
     <link rel="manifest" href="manifest.json">
 
+    <!-- TODO: custom icons -->
     <!-- Tile color for Win8 -->
     <meta name="msapplication-TileColor" content="#3372DF">
+    <!-- Tile icon for Win8 (144x144) -->
+    <meta name="msapplication-TileImage" content="images/touch/ms-touch-icon-144x144-precomposed.png">
 
     <!-- Add to homescreen for Chrome on Android -->
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="PSK">
+    <meta name="application-name" content="PolyTeX">
     <link rel="icon" sizes="192x192" href="images/touch/chrome-touch-icon-192x192.png">
 
     <!-- Add to homescreen for Safari on iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Polymer Starter Kit">
+    <meta name="apple-mobile-web-app-title" content="PolyTeX">
     <link rel="apple-touch-icon" href="images/touch/apple-touch-icon.png">
-
-    <!-- Tile icon for Win8 (144x144) -->
-    <meta name="msapplication-TileImage" content="images/touch/ms-touch-icon-144x144-precomposed.png">
 
     <!-- build:js bower_components/webcomponentsjs/webcomponents-lite.min.js -->
     <script src="bower_components/webcomponentsjs/webcomponents-lite.js"></script>
@@ -66,16 +66,18 @@
             <span class="title">Actions</span>
           </paper-toolbar>
           <paper-menu selectable="#no-menu-item-is-selectable">
-            <paper-item id="loadItem" on-tap="doLoadItemAction">Load</paper-item>
-            <paper-item id="saveItem" on-tap="doSaveItemAction" disabled="[[!fileId]]">Save</paper-item>
+            <paper-item id="loadItem" on-tap="doLoadItemAction">Load…</paper-item>
+            <paper-item id="saveItem" on-tap="doSaveItemAction" disabled="[[!isCloudFileConnected(cloudStatus)]]">
+              Save
+            </paper-item>
             <hr>
             <paper-item id="helloWorldItem" on-tap="doHelloWorld">Hello, world!</paper-item>
             <hr>
             <paper-item selected="unauthorized" id="connectCloudItem" on-tap="connectCloud"
-                        disabled="[[isConnectCloudItemDisabled(cloudStatus)]]" hidden$="[[isConnectCloudItemHidden(cloudStatus)]]">
+                        disabled="[[isCloudReady(cloudStatus)]]" hidden$="[[!isCloudConnected(cloudStatus)]]">
               Connect to Google Drive
             </paper-item>
-            <paper-item id="disconnectCloudItem" on-tap="disconnectCloud" hidden$="[[!isConnectCloudItemHidden(cloudStatus)]]">
+            <paper-item id="disconnectCloudItem" on-tap="disconnectCloud" hidden$="[[isCloudConnected(cloudStatus)]]">
               Disconnect from Google Drive
             </paper-item>
             </iron-pages>
@@ -89,14 +91,15 @@
             <div class="title">
               <!-- TODO: tooltips? -->
               <!-- TODO: change filename -->
-              <iron-a11y-keys target="[[filenameTarget]]" keys="enter" on-keys-pressed="maybeUpdateFilename"></iron-a11y-keys>
-              <autogrow-input id="filenameInput" class="editable-title" placeholder="untitled.tex" value="{{filename}}" focused-changed="maybeUpdateFilename"></autogrow-input>
+
+              <iron-a11y-keys target="[[filenameTarget]]" keys="enter" on-keys-pressed="updateFilename"></iron-a11y-keys>
+              <autogrow-input id="filenameInput" class="editable-title" placeholder="untitled.tex" value="[[filename]]" on-blur="updateFilename"></autogrow-input>
               <div class="flex" style="min-width: 8px"></div>
             </div>
 
             <!-- TODO: Reconsider these status messages -->
-            <iron-pages attr-for-selected="status" selected="[[cloudStatus]]" fallback-selection="loading">
-              <a status="loading" class="cloud-status">Loading Google Drive support…</a>
+            <iron-pages attr-for-selected="status" selected="[[cloudStatus]]" fallback-selection="api-loading">
+              <a status="api-loading" class="cloud-status">Loading Google Drive support…</a>
               <a status="unavailable" class="cloud-status">Google Drive is not available</a>
               <a status="unauthorized" class="cloud-status" on-tap="connectCloud">
                 <paper-item>Connect to Google Drive</paper-item>
@@ -105,8 +108,9 @@
               <a status="ready-to-sync" class="cloud-status" on-tap="startCloudIntegration">
                 <paper-item>Ready to save to Drive</paper-item>
               </a>
-              <a status="loaded" class="cloud-status">Last modified at [[lastCloudModificationTime]]</a>
-              <!-- <paper-icon-button status="off" icon="cloud-off" on-tap="startCloudIntegration"></paper-icon-button> -->
+              <a status="loading-file" class="cloud-status">Loading file from Drive…</a>
+              <a status="loaded" class="cloud-status">Last modified at [[lastCloudModifiedTime]]</a>
+              <a status="loaded-read-only" class="cloud-status">Last modified at [[lastCloudModifiedTime]] (read-only)</a>
               <a status="dirty" class="cloud-status">There are unsaved changes</a>
               <a status="saving" class="cloud-status">Saving…</a>
               <a status="saved" class="cloud-status">All changes saved in Drive</a>
@@ -126,7 +130,8 @@
           <div id="mainContent" class="fit vertical layout">
             <div id="contentArea" class="flex horizontal layout">
               <gtex-cloud-editor id="editor" class="flex" name="{{filename}}" editor-options="[[codeMirrorOptions]]"
-                                 cloud-status="{{cloudStatus}}" web-view-link="{{webViewLink}}"></gtex-cloud-editor>
+                                 cloud-status="{{cloudStatus}}" file-id="{{fileId}}" web-view-link="{{webViewLink}}"
+                                 api-error="{{apiError}}" last-cloud-modified-time="{{lastCloudModifiedTime}}"></gtex-cloud-editor>
 
               <div id="preview" class="flex vertical layout">
                 <!-- TODO: Refactor out the compilation? -->
@@ -155,7 +160,7 @@
           <paper-button class="toast-action">View in Drive</paper-button>
         </a>
       </paper-toast>
-      <paper-toast id="apiErrorToast" text="[[apiErrorMessage]]" opened="[[apiErrorMessage]]"></paper-toast>
+      <paper-toast id="apiErrorToast" text="[[apiError]]" opened="[[apiError]]"></paper-toast>
     </template>
 
     <!-- build:js scripts/app.js -->

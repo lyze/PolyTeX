@@ -1,33 +1,40 @@
-<!-- Copyright David Xu, 2016 -->
-
+<!-- @license Copyright David Xu, 2016 -->
 <script src="../bower_components/page/page.js"></script>
 <script>
-  // TODO: Routes are not currently being used
-  window.addEventListener('WebComponentsReady', function () {
+  ((document) => {
+    'use strict';
 
-    // Removes end / from app.baseUrl which page.base requires for production
-    if (window.location.port === '') {  // if production
-      page.base(app.baseUrl.replace(/\/$/, ''));
-    }
+    window.addEventListener('WebComponentsReady', function () {
+      const app = Polymer.dom(document).querySelector('#app');
 
-    page('/', () => {
-      app.route = 'editor';
+      app.baseUrl = '/';
+      if (window.location.port === '') {  // if production
+        // Uncomment app.baseURL below and
+        // set app.baseURL to '/your-pathname/' if running from folder in production
+        app.baseUrl = '/PolyTeX/';
+      }
+
+      // Removes end / from app.baseUrl which page.base requires for production
+      if (window.location.port === '') {  // if production
+        page.base(app.baseUrl.replace(/\/$/, ''));
+      }
+
+      page(app.baseUrl, () => {
+        app.route = 'editor';
+      });
+
+      page('/', () => {
+        app.route = 'editor';
+      });
+
+      page('/:fileId', ctx => {
+        app.fileId = ctx.params.fileId;
+        console.log(`Routing to open file: ${app.fileId}`);
+      });
+
+      page.start({
+        hashbang: true
+      });
     });
-
-    page('/:fileId', () => {
-      app.fileId = ctx.params.fileId;
-    });
-
-    page(app.baseUrl, () => {
-      app.route = 'editor';
-    });
-
-    // 404
-    page('*', () => {
-      app.$.toast.text = 'Can\'t find: ' + window.location.href  + '. Redirected you to Home Page';
-      app.$.toast.show();
-      page.redirect(app.baseUrl);
-    });
-
-  });
+  })(document);
 </script>
