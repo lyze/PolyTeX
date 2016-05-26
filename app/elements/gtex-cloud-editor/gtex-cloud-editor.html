@@ -6,8 +6,6 @@
 <link rel="import" href="../gtex-code-textarea/gtex-code-textarea.html">
 
 <dom-module id="gtex-cloud-editor">
-  <style>
-  </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/mode/stex/stex.js"></script>
   <template>
     <gtex-code-textarea id="editor" class="flex" editor-options="{{editorOptions}}" animated="true"></gtex-code-textarea>
@@ -16,6 +14,7 @@
   </template>
 </dom-module>
 <script src="googleapis.js"></script>
+<script src="realtimeeditor.js"></script>
 <script>
   Polymer({
     is: 'gtex-cloud-editor',
@@ -35,6 +34,8 @@
         type: Object,
         notify: true,
       },
+
+      placeholderName: String,
 
       noCloud: Boolean,
 
@@ -181,6 +182,12 @@
         this.realtime = realtime;
         this.auth = new Auth(this._gapi.auth);
 
+        var style = document.createElement('style');
+        style.type = 'text/css';
+        document.head.appendChild(style);
+        this.realtimeEditor = new RealtimeEditor(this.realtime, style,
+                                                 this.$.editor.codeMirror);
+
         var p = this._tryConnectGoogleSilentlyOrDie();
         p.catch(token => {
           console.log('Failed to authorize silently. A login is required.',
@@ -192,11 +199,19 @@
     },
 
     ready: function () {
+      if (!this.name) {
+        this._setName(this.placeholderName);
+      }
       if (this.noCloud) {
         this._setCloudStatus('unavailable');
       } else {
         this._initialized = this._initGoogle();
       }
+      this.$.editor.codeMirror.on('change', _ => {
+        if (this.cloudFileConnected) {
+          this._setCloudStatus('dirty');
+        }
+      });
     },
 
     checkCloud: function () {
@@ -212,6 +227,10 @@
       }
     },
 
+    get cloudFileConnected () { // FIXME duplicate code
+      return ['loaded', 'loaded-read-only', 'dirty', 'saving', 'saved'].includes(this.cloudStatus);
+    },
+
     get _gapi () {
       console.assert(window.gapi, 'window.gapi should exist');
       return window.gapi;
@@ -220,88 +239,20 @@
     endCloudIntegration: function () {
       this.checkCloud();
 
-      this._collaborativeString.removeEventListener(
-        this.realtime.api.EventType.TEXT_INSERTED,
-        this._realtimeCollaborativeInsertionListener);
-
-      this._collaborativeString.removeEventListener(
-        this.realtime.api.EventType.TEXT_DELETED,
-        this._realtimeCollaborativeDeletionListener);
-
-      this.$.editor.codeMirror.off('change', this._realtimeCodeMirrorListener);
+      this.realtimeEditor.close();
 
       console.log('Signing out...');
       this._gapi.auth.signOut();
       console.log('Signed out.');
 
       this._setCloudStatus('unauthorized');
-      this._setFileId(null);
+      this.fileId = null;
       this._setWebViewLink(null);
       this._immediateLoginFailed = null;
     },
 
-    _resetRealtime: function () {
-      if (this._realtimeDocument) {
-        this._realtimeDocument.close();
-      }
-      this.$.editor.codeMirror.off('change', this._realtimeCodeMirrorListener);
-    },
-
-    _loadRealtime: function () {
-      console.log('Connecting realtime API...');
-      // TODO: realtime can be orthogonal from saving to drive
-      const initializeModel = model => {
-        console.log('Initializing model...');
-        var string = model.createString();
-        string.setText('');
-        model.getRoot().set('PolyTeX-data', string);
-      };
-
-      const _realtimeOnLoaded = doc => {
-        console.log('Loading realtime for editor components...');
-        this._realtimeDocument = doc;
-        var model = doc.getModel();
-        var collaborativeString = model.getRoot().get('PolyTeX-data');
-        this._collaborativeString = collaborativeString;
-        var codeMirror = this.$.editor.codeMirror;
-        var codeMirrorDoc = codeMirror.getDoc();
-
-        this._realtimeCollaborativeInsertionListener = e => {
-          var pos = codeMirrorDoc.posFromIndex(e.index);
-          // performs an insertion if you call it with only one position argument
-          doc.replaceRange(e.text, pos);
-        };
-        collaborativeString.addEventListener(
-          this.realtime.api.EventType.TEXT_INSERTED,
-          this._realtimeCollaborativeInsertionListener);
-
-        this._realtimeCollaborativeDeletionListener = e => {
-          var start = codeMirrorDoc.posFromIndex(e.index);
-          var end = codeMirrorDoc.posFromIndex(e.index + e.text.length);
-          doc.replaceRange('', start, end);
-        };
-        collaborativeString.addEventListener(
-          this.realtime.api.EventType.TEXT_DELETED,
-          this._realtimeCollaborativeDeletionListener);
-
-        this._realtimeCodeMirrorListener = (_, e) => {
-          if (this.fileId) {
-            this._setCloudStatus('dirty');
-          }
-          model.beginCompoundOperation();
-          for (let line = e.from.line; line < e.to.line; line++) {
-            var start = codeMirrorDoc.indexFromPos({line: line, ch: e.from.ch});
-            var end = codeMirrorDoc.indexFromPos({line: line, ch: e.to.ch});
-            collaborativeString.removeRange(start, end);
-            collaborativeString.insertString(start, e.text[line - e.from.line]);
-          }
-          model.endCompoundOperation();
-        };
-        codeMirror.on('change', this._realtimeCodeMirrorListener);
-        console.log('Loaded realtime components.');
-      };
-
-      this.realtime.load(this.fileId, _realtimeOnLoaded, initializeModel, e => {
+    _initRealtimeEditor() {
+      this.realtimeEditor.init(this.fileId, e => {
         this._setApiError(e);
       }, e => {
         this._setApiError('Failed to reauthorize for Google services.');
@@ -314,15 +265,14 @@
       return this.drive.createTeXFile(this.name, {fields: 'id,name,webViewLink,createdTime'}).then(response => {
         console.log('Created Google Drive file: ' + response.result.name, response);
 
-        this._setFileId(response.result.id);
+        this.fileId = response.result.id; // triggers realtime loading
         this._setWebViewLink(response.result.webViewLink);
+
+        this._initRealtimeEditor();
+
         this.fire('cloud-file-loaded', response);
 
         this.save();
-
-
-        this._loadRealtime();
-
       }, errorResponse => {
         this._setApiError(errorResponse.result.error.message);
       });
@@ -346,7 +296,8 @@
         this.$.editor.setValue(downloadResponse.body);
 
         if (this._cloudEditable) {
-          this._loadRealtime(); // not blocking but notify 'loaded' regardless
+          // not a blocking operation, but notify 'loaded' regardless
+          this._initRealtimeEditor();
           this._setCloudStatus('loaded');
           this.fire('cloud-file-loaded', metadataResponse);
         } else {
@@ -360,7 +311,6 @@
 
     startCloudIntegration: function () {
       return this.connectCloud().then(_ => {
-        this._resetRealtime();
         return this.fileId ? this._findCloudFile() : this._createNewCloudFile();
       });
     },
@@ -392,12 +342,14 @@
 
 
     rename: function (newName) {
-      if (this.noCloud) {
+      if (this.noCloud || !this.cloudFileConnected) {
+        this._setName = newName;
         return;
       }
       // TODO UI for (un)successful rename?
-      this.drive.renameFile(this.fileId, newName, {fields: 'modifiedTime'}).then(response => {
+      return this.drive.renameFile(this.fileId, newName, {fields: 'name,modifiedTime'}).then(response => {
         console.log('File renamed.', response);
+        this._setName(response.result.name);
         this._setLastCloudModifiedTime(new Date(response.result.modifiedTime));
       });
     },
@@ -408,10 +360,13 @@
         return;
       }
       var newId = e.detail.value;
+      if (!newId) {
+        return;
+      }
       this._initialized.then(_ => {
-        console.log('id', this.fileId);
+        this.realtimeEditor.close(); // make sure to start clean
         this.startCloudIntegration();
-      }).catch(e => {
+      }, e => {
         if (this.cloudStatus === 'unauthorized' && this.fileId) {
           this._setApiError('Connect with Drive to view the file.');
         } else {

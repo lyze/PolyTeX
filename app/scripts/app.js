@@ -196,7 +196,9 @@ import CompilationService from './compilationservice';
           _ => app.savedMessage = `Saved ${name} at ${new Date()}`,
           r => app.apiErrorMessage = r.error.message);
         // workaround for e.preventDefault() for ctrl+s
-        detail.keyboardEvent.preventDefault();
+        if (detail.keyboardEvent) {
+          detail.keyboardEvent.preventDefault();
+        }
       };
     });
 

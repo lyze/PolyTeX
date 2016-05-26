@@ -59,9 +59,9 @@ class Realtime {
     this.auth = auth;
   }
 
-  load(fileId, onLoaded, opt_initializerFn, opt_errorFn, opt_refreshAuthErrorFn) {
+  load(fileId, onLoaded, opt_initializerFn, opt_realtimeLoadErrorFn, opt_refreshAuthErrorFn) {
     return this.api.load(fileId, onLoaded, opt_initializerFn, e => {
-      if (e.type === this.realtime.ErrorType.TOKEN_REFRESH_REQUIRED) {
+      if (e.type === this.realtime.api.ErrorType.TOKEN_REFRESH_REQUIRED) {
         console.log('Reauthorizing...');
         this.auth.authorize(token => {
           if (token.error) {
@@ -73,15 +73,15 @@ class Realtime {
             console.log('Reauthorized.');
             this.api.load(fileId, onLoaded, opt_initializerFn, e => {
               console.error(`Failed to load realtime document for file ${fileId} after attempting reauthorization.`, e);
-              if (opt_errorFn) {
-                opt_errorFn(e);
+              if (opt_realtimeLoadErrorFn) {
+                opt_realtimeLoadErrorFn(e);
               }
             });
           }
         });
 
       } else {
-        opt_errorFn(e);
+        opt_realtimeLoadErrorFn(e);
       }
     });
   }
