@@ -87,7 +87,7 @@
               <!-- TODO: change filename -->
 
               <iron-a11y-keys target="[[filenameTarget]]" keys="enter" on-keys-pressed="updateFilename"></iron-a11y-keys>
-              <autogrow-input id="filenameInput" class="editable-title" placeholder="untitled.tex" value="[[filename]]" on-blur="updateFilename"></autogrow-input>
+              <autogrow-input id="filenameInput" class="editable-title" placeholder="[[filename]]" value="[[filename]]" on-blur="updateFilename"></autogrow-input>
               <div class="flex" style="min-width: 8px"></div>
             </div>
 
@@ -102,12 +102,24 @@
               <a status="ready-to-sync" class="cloud-status" on-tap="startCloudIntegration">
                 <paper-item>Ready to save to Drive</paper-item>
               </a>
-              <a status="loading-file" class="cloud-status">Loading file from Drive…</a>
-              <a status="loaded" class="cloud-status">Last modified at [[lastCloudModifiedTime]]</a>
-              <a status="loaded-read-only" class="cloud-status">Last modified at [[lastCloudModifiedTime]] (read-only)</a>
-              <a status="dirty" class="cloud-status">There are unsaved changes</a>
-              <a status="saving" class="cloud-status">Saving…</a>
-              <a status="saved" class="cloud-status">All changes saved in Drive</a>
+              <a href="[[webViewLink]]" target="_blank" status="loading-file" class="cloud-status">
+                Loading file from Drive…
+              </a>
+              <a href="[[webViewLink]]" target="_blank" status="loaded" class="cloud-status">
+                Last modified at [[lastCloudModifiedTime]]
+              </a>
+              <a href="[[webViewLink]]" target="_blank" status="loaded-read-only" class="cloud-status">
+                Last modified at [[lastCloudModifiedTime]] (read-only)
+              </a>
+              <a href="[[webViewLink]]" target="_blank" status="dirty" class="cloud-status">
+                There are unsaved changes
+              </a>
+              <a href="[[webViewLink]]" target="_blank" status="saving" class="cloud-status">
+                Saving…
+              </a>
+              <a href="[[webViewLink]]" target="_blank" status="saved" class="cloud-status">
+                All changes saved in Drive
+              </a>
             </iron-pages>
 
             <iron-pages attr-for-selected="status" selected="[[compileStatus]]" fallback-selection="default">
@@ -123,7 +135,7 @@
 
           <div id="mainContent" class="fit vertical layout">
             <div id="contentArea" class="flex horizontal layout">
-              <gtex-cloud-editor id="editor" class="flex" name="{{filename}}" editor-options="[[codeMirrorOptions]]"
+              <gtex-cloud-editor id="editor" class="flex" placeholder-name="untitled.tex" name="{{filename}}" editor-options="[[codeMirrorOptions]]"
                                  cloud-status="{{cloudStatus}}" file-id="{{fileId}}" web-view-link="{{webViewLink}}"
                                  api-error="{{apiError}}" last-cloud-modified-time="{{lastCloudModifiedTime}}"></gtex-cloud-editor>
 

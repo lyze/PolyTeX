@@ -481,7 +481,9 @@ var CompilationService = function () {
           return app.apiErrorMessage = r.error.message;
         });
         // workaround for e.preventDefault() for ctrl+s
-        detail.keyboardEvent.preventDefault();
+        if (detail.keyboardEvent) {
+          detail.keyboardEvent.preventDefault();
+        }
       };
     });
   }); // WebComponentsReady
