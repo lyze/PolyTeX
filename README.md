@@ -1,20 +1,25 @@
 # PolyTeX
 
 A LaTeX editor that can compile PDFs entirely in your browser.
+[Demo](//lyze.github.io/PolyTeX).
 
 Currently, it only requires a server that can serve static assets from the TeX
 Live distribution.
 
-Powered by [texlive.js](//github.com/manuels/texlive.js) and
-[Polymer](//github.com/Polymer/polymer).
+Powered by
+* [texlive.js](//github.com/manuels/texlive.js)
+* [Polymer](//github.com/Polymer/polymer)
 
-[Demo](//lyze.github.io/PolyTeX)
 
-## TODOs
+## Goals
 
-- [ ] Integrate Google Drive API
-  - [ ] Realtime API
-  - [ ] Drive App
+- [x] Integrate Google Drive API
+  - [x] Save to Drive
+  - [ ] Load from Drive
+    - [x] Load from Drive by file ID
+  - [x] Realtime API
+    - [ ] Enhanced collaborator cursors
+  - [ ] Drive application
 
 - [ ] Help improve [texlive.js](//github.com/manuels/texlive.js)
 
@@ -22,77 +27,37 @@ Powered by [texlive.js](//github.com/manuels/texlive.js) and
 
 - [ ] Refactoring
 
+- [ ] Tests
 
-## Install dependencies
 
-#### Quick-start (for experienced users)
-
-With Node.js installed, run the following one liner from the root of your Polymer Starter Kit download:
+## Setup
 
 ```sh
-npm install -g gulp bower && npm install && bower install
+npm install && bower install
 ```
+## Development workflow
 
-#### Prerequisites (for everyone)
-
-**To install dependencies:**
-
-1)  Check your Node.js version.
-
-```sh
-node --version
-```
-
-The version should be at or above 0.12.x.
-
-2)  If you don't have Node.js installed, or you have a lower version, go to [nodejs.org](https://nodejs.org) and click on the big green Install button.
-
-3)  Install `gulp` and `bower` globally.
-
-```sh
-npm install -g gulp bower
-```
-
-This lets you run `gulp` and `bower` from the command line.
-
-4)  Install the starter kit's local `npm` and `bower` dependencies.
-
-```sh
-cd polymer-starter-kit && npm install && bower install
-```
-
-This installs the element sets (Paper, Iron, Platinum) and tools the starter kit
-requires to build and serve apps.
-
-### Development workflow
-
-#### Serve / watch
+### Serve / watch
 
 ```sh
 gulp serve
 ```
-
-This outputs an IP address you can use to locally test and another that can be
-used on devices connected to your network.
-
-#### Run tests
-
+and also
 ```sh
-gulp test:local
+gulp serve-dist
 ```
 
-This runs the unit tests defined in the `app/test` directory through
-[web-component-tester](https://github.com/Polymer/web-component-tester).
 
-To run tests Java 7 or higher is required. To update Java go to
-http://www.oracle.com/technetwork/java/javase/downloads/index.html and download
-***JDK*** and install it.
-
-#### Build & Vulcanize
+### Build
 
 ```sh
 gulp
 ```
+This does a clean build (i.e., `gulp clean && gulp dist`).
 
-Build and optimize the current project, ready for deployment. This includes
-vulcanization, image, script, stylesheet and HTML optimization and minification.
+
+#### Deploy (to GitHub Pages)
+
+```sh
+gulp build-deploy-gh-pages
+```
