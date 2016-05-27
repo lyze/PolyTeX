@@ -14,12 +14,6 @@ body {
   transform: translate(-50%, -50%);
 }
 
-/* FIXME: Use the fitInto property of paper-toast */
-#compileProblemToast {
-  left: 50%;
-  right: 0;
-}
-
 #compileLogTextArea {
   border: none;
 }

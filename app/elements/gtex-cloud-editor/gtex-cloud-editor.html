@@ -13,9 +13,10 @@
     <google-realtime-api id="realtimeApiLoader"></google-realtime-api>
   </template>
 </dom-module>
-<script src="googleapis.js"></script>
-<script src="realtimeeditor.js"></script>
 <script>
+  import { Auth, Drive, Realtime } from './googleapis'
+  import { RealtimeEditor } from './realtimeeditor'
+
   Polymer({
     is: 'gtex-cloud-editor',
 
@@ -153,7 +154,7 @@
             resolve(new Realtime(e.target.api, new Auth(this._gapi.auth)));
           });
 
-          // TODO: consider UX for case when realtime is unavailable
+          // TODO: rethink UX for case when realtime is unavailable, instead of just refusing all drive support
           this.$.realtimeApiLoader.addEventListener(
             'library-error-message-changed', e => { // TODO: fire event
               this._setCloudStatus('unavailable');
@@ -188,13 +189,7 @@
         this.realtimeEditor = new RealtimeEditor(this.realtime, style,
                                                  this.$.editor.codeMirror);
 
-        var p = this._tryConnectGoogleSilentlyOrDie();
-        p.catch(token => {
-          console.log('Failed to authorize silently. A login is required.',
-                      token);
-          this._setCloudStatus('unauthorized');
-        });
-        return p;
+        return this._tryConnectGoogleSilentlyOrDie();
       });
     },
 
@@ -206,6 +201,16 @@
         this._setCloudStatus('unavailable');
       } else {
         this._initialized = this._initGoogle();
+        if (!this.fileId) {
+          // There is no fileId and the user is not logged in.
+          // Stay silent in this case.
+          this._initialized.catch(token => {
+            console.log('Failed to authorize silently. A login is required.',
+                        token);
+            this._setCloudStatus('unauthorized');
+          });
+        }
+        // The case when a fileId does exist is handled in fileIdChanged.
       }
       this.$.editor.codeMirror.on('change', _ => {
         if (this.cloudFileConnected) {
@@ -251,8 +256,8 @@
       this._immediateLoginFailed = null;
     },
 
-    _initRealtimeEditor() {
-      this.realtimeEditor.init(this.fileId, e => {
+    _initRealtimeEditor: function () {
+      return this.realtimeEditor.init(this.fileId, e => {
         this._setApiError(e);
       }, e => {
         this._setApiError('Failed to reauthorize for Google services.');
@@ -268,11 +273,11 @@
         this.fileId = response.result.id; // triggers realtime loading
         this._setWebViewLink(response.result.webViewLink);
 
-        this._initRealtimeEditor();
+        return this._initRealtimeEditor().then(_ => {
+          this.fire('cloud-file-loaded', response);
+          this.save();
+        });
 
-        this.fire('cloud-file-loaded', response);
-
-        this.save();
       }, errorResponse => {
         this._setApiError(errorResponse.result.error.message);
       });
@@ -296,10 +301,10 @@
         this.$.editor.setValue(downloadResponse.body);
 
         if (this._cloudEditable) {
-          // not a blocking operation, but notify 'loaded' regardless
-          this._initRealtimeEditor();
-          this._setCloudStatus('loaded');
-          this.fire('cloud-file-loaded', metadataResponse);
+          return this._initRealtimeEditor().then(_ => {
+            this._setCloudStatus('loaded');
+            this.fire('cloud-file-loaded', metadataResponse);
+          });
         } else {
           this._setCloudStatus('loaded-read-only');
         }
@@ -342,11 +347,15 @@
 
 
     rename: function (newName) {
-      if (this.noCloud || !this.cloudFileConnected) {
-        this._setName = newName;
+      if (this.name === newName) {
         return;
       }
-      // TODO UI for (un)successful rename?
+      if (this.noCloud || !this.cloudFileConnected) {
+        this._setName(newName);
+        return;
+      }
+      // TODO: UI for (un)successful rename?
+      // TODO: Realtime updating for filename?
       return this.drive.renameFile(this.fileId, newName, {fields: 'name,modifiedTime'}).then(response => {
         console.log('File renamed.', response);
         this._setName(response.result.name);

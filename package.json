@@ -43,8 +43,11 @@
     "require-dir": "^0.3.0",
     "rollup": "^0.26.0",
     "rollup-plugin-babel": "^2.4.0",
+    "rollup-plugin-commonjs": "^2.2.1",
     "rollup-plugin-includepaths": "^0.1.2",
+    "rollup-plugin-multi-entry": "^1.2.0",
     "run-sequence": "^1.0.2",
+    "through2": "^2.0.1",
     "vulcanize": ">= 1.4.2",
     "web-component-tester": "^4.0.0"
   },

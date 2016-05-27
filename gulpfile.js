@@ -1,7 +1,8 @@
 /*eslint-env node */
-/* Modifications copyright David Xu, 2016 */
 /*
 @license
+Modifications copyright David Xu, 2016
+
 Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
 The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
@@ -15,29 +16,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 // Include promise polyfill for node 0.10 compatibility
 require('es6-promise').polyfill();
 
-// Include Gulp & tools we'll use
-var gulp = require('gulp');
 var $ = require('gulp-load-plugins')();
-var del = require('del');
-var runSequence = require('run-sequence');
 var browserSync = require('browser-sync');
-var reload = browserSync.reload;
-var merge = require('merge-stream');
-var path = require('path');
+var crypto = require('crypto');
+var del = require('del');
 var fs = require('fs');
 var glob = require('glob-all');
+var gulp = require('gulp');
 var historyApiFallback = require('connect-history-api-fallback');
+var merge = require('merge-stream');
 var packageJson = require('./package.json');
-var crypto = require('crypto');
+var path = require('path');
+var reload = browserSync.reload;
+var runSequence = require('run-sequence');
 
 var rollup = require('rollup').rollup;
-var babel = require('rollup-plugin-babel');
-var includePaths = require('rollup-plugin-includepaths');
+var rollupBabel = require('rollup-plugin-babel');
+var rollupCommonJs = require('rollup-plugin-commonjs');
+var rollupIncludePaths = require('rollup-plugin-includepaths');
+var rollupMultiEntry = require('rollup-plugin-multi-entry').default;
 
-var ensureFiles = require('./tasks/ensure-files.js');
+var through = require('through2');
 
-
-var AUTOPREFIXER_BROWSERS = [
+const AUTOPREFIXER_BROWSERS = [
   'ie >= 10',
   'ie_mob >= 10',
   'ff >= 30',
@@ -71,7 +72,81 @@ const toMinifyJs = () => $.uglify({
   preserveComments: 'some'
 });
 
-var plumberErrorHandler = function (e) {
+const unixStylePath = p => p.split(path.sep).join('/');
+
+// Processes ES6 modules in custom Polymer modules. There must be only one
+// <script> tag in the polymer module file.
+const toRollup = opt_paths => through.obj((file, _, callback) => {
+  var paths;
+  if (opt_paths == null) {
+    paths = [];
+  }
+  if (opt_paths instanceof Function) {
+    paths = opt_paths(file);
+  }
+  rollup({
+    entry: file.path,
+    onwarn: $.util.log,
+    plugins: [
+      rollupBabel({
+        runtimeHelpers: true,
+        presets: ['es2015-rollup'],
+        exclude: 'node_modules/**'
+      }),
+      rollupIncludePaths({
+        paths: paths
+      })
+    ]
+  }).then(bundle => {
+    var result = bundle.generate({
+      format: 'iife',
+      sourceMap: true,
+      sourceMapFile: file.relative
+    });
+    file.contents = new Buffer(result.code);
+    file.sourceMap = result.map;
+    callback(null, file);
+  }, callback);
+});
+
+const doRollup = (entry, dest, includePaths) => {
+  if (includePaths == null) {
+    includePaths = [];
+  }
+  return rollup({
+    entry: entry,
+    onwarn: $.util.log,
+    plugins: [
+      rollupBabel({
+        runtimeHelpers: true,
+        presets: ['es2015-rollup'],
+        exclude: 'node_modules/**'
+      }),
+      rollupIncludePaths({
+        paths: includePaths
+      }),
+      rollupCommonJs(),
+      {
+        resolveId: (id, _) => {
+          if (id === 'page') {
+            return 'app/bower_components/page/page.js';
+          }
+          return null;
+        }
+      },
+      rollupMultiEntry()
+    ]
+  }).then(bundle => {
+    var result = bundle.write({
+      moduleName: 'app',
+      format: 'iife',
+      dest: dest,
+      sourceMap: true
+    });
+  });
+};
+
+const plumberErrorHandler = function (e) {
   console.log(e);
   this.emit('end');
 };
@@ -183,79 +258,55 @@ gulp.task('dist-fonts', () => {
 
 
 gulp.task('rollup', () => {
-  return rollup({
-    entry: 'app/scripts/app.js',
-    onwarn: $.util.log,
-    plugins: [
-      babel({
-        presets: ['es2015-rollup'],
-        exclude: 'node_modules/**'
-      })
-    ]
-  }).then(bundle => {
-    bundle.write({
-      sourceMap: true,
-      dest: path.resolve(build('scripts/app.js'))
-    });
-  });
+  return doRollup('app/scripts/{routes,app}.js', build('scripts/app.js'));
 });
 
 gulp.task('dist-rollup', () => {
-  return rollup({
-    entry: 'app/scripts/app.js',
-    onwarn: $.util.log,
-    plugins: [
-      babel({
-        presets: ['es2015-rollup'],
-        exclude: 'node_modules/**'
-      })
-    ]
-  }).then(bundle => {
-    bundle.write({
-      sourceMap: true,
-      dest: path.resolve(dist('scripts/app.js'))
-    });
-  });
+  return doRollup('app/scripts/{routes,app}.js', dist('scripts/app.js'));
 });
 
 // Transpile ES6 in elements directory.
 gulp.task('elements', () => {
-  return gulp.src(['app/elements/**/*'], {base: 'app'})
-    .pipe($.changed(build()))
+  return gulp.src(['app/elements/**/*.html'], {base: 'app'})
     .pipe($.sourcemaps.init())
     .pipe($.plumber(plumberErrorHandler))
 
     .pipe($.if('*.html', $.crisper({scriptInHead: false})))
-    .pipe($.if('*.js', $.babel({presets: ['es2015']})))
+  // write the JS output because rollup does not support streaming
+    .pipe($.if('*.js', toTmp()))
+    .pipe($.if('*.js', toRollup(file => [
+      'app/' + unixStylePath(path.dirname(file.relative))
+    ])))
 
     .pipe($.plumber.stop())
-    .pipe($.sourcemaps.write('.'))
     .pipe(toBuild())
+    .pipe($.sourcemaps.write('.'))
     .pipe($.size({title: 'elements'}));
 });
 
 // Output to a temporary directory for use by vulcanize
 gulp.task('tmp-optimize-elements', () => {
-  return gulp.src(['app/elements/**/*'], {base: 'app'})
-    .pipe($.changed(tmp()))
+  return gulp.src(['app/elements/**/*.html'], {base: 'app'})
     .pipe($.sourcemaps.init())
     .pipe($.plumber(plumberErrorHandler))
 
     .pipe($.if('*.html', $.crisper({scriptInHead: false})))
     .pipe($.if('*.html', toMinifyHtml()))
-    .pipe($.if('*.js', $.babel({presets: ['es2015']})))
+    .pipe($.if('*.js', toTmp()))
+    .pipe($.if('*.js', toRollup(file => [
+      'app/' + unixStylePath(path.dirname(file.relative))
+    ])))
     .pipe($.if('*.js', toMinifyJs()))
 
     .pipe($.plumber.stop())
-    .pipe($.sourcemaps.write('.'))
     .pipe(toTmp())
+    .pipe($.sourcemaps.write('.'))
     .pipe($.size({title: 'dist-elements'}));
 });
 
 // FIXME Since we depend on dist-styles to have run, there will be a duplicate of the css in the dist directory.
 gulp.task('dist-elements', ['dist-styles', 'tmp-optimize-elements'], () => {
   return gulp.src(tmp('elements/elements.html'))
-    .pipe($.changed(dist('elements')))
     .pipe($.plumber(plumberErrorHandler))
 
     .pipe($.vulcanize({
@@ -285,7 +336,6 @@ gulp.task('dist-html', [
   'dist-copy', 'dist-styles', 'dist-images', 'dist-fonts', 'dist-rollup', 'dist-elements'
 ], () => {
   return gulp.src('app/*.html')
-    .pipe($.changed(dist()))
      // FIXME the unconcatenated files still exist in the dist directory
     .pipe($.useref({searchPath: [dist()]}))
     .pipe(toDist())
@@ -298,13 +348,6 @@ gulp.task('devel-unoptimized', [
 ]);
 
 gulp.task('dist', ['dist-copy', 'dist-html']);
-
-// Ensure that we are not missing required files for the project "dot" files are
-// specifically tricky due to them being hidden on some systems.
-gulp.task('ensureFiles', cb => {
-  var requiredFiles = ['.bowerrc'];
-  ensureFiles(requiredFiles.map(p => path.join(__dirname, p)), cb);
-});
 
 // Generate config data for the <sw-precache-cache> element.
 // This include a list of files that should be precached, as well as a (hopefully unique) cache
@@ -351,6 +394,7 @@ gulp.task('clean', () => {
 gulp.task('serve', ['devel-unoptimized'], () => {
   browserSync({
     port: 5000,
+    ghostMode: false,
     notify: false,
     logPrefix: 'PolyTeX',
     snippetOptions: {
@@ -389,6 +433,7 @@ gulp.task('serve', ['devel-unoptimized'], () => {
 gulp.task('serve-dist', ['dist'], () => {
   browserSync({
     port: 5001,
+    ghostMode: false,
     notify: false,
     logPrefix: 'PolyTeX',
     snippetOptions: {

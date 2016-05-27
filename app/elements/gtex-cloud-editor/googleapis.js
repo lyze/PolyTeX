@@ -16,7 +16,7 @@ const AUTH_PARAMS_IMMEDIATE = {
 };
 
 
-class Auth {
+export class Auth {
   constructor(auth) {
     this.auth = auth;
   }
@@ -52,7 +52,7 @@ class Auth {
 }
 
 
-class Realtime {
+export class Realtime {
 
   constructor(realtimeApi, auth) {
     this.api = realtimeApi;
@@ -88,7 +88,7 @@ class Realtime {
 };
 
 
-class Drive {
+export class Drive {
 
   constructor(drive, gapi) {
     this.drive = drive;
