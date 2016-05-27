@@ -84,20 +84,20 @@
             <paper-icon-button icon="menu" paper-drawer-toggle></paper-icon-button>
             <div class="title">
               <!-- TODO: tooltips? -->
-              <!-- TODO: change filename -->
-
               <iron-a11y-keys target="[[filenameTarget]]" keys="enter" on-keys-pressed="updateFilename"></iron-a11y-keys>
               <autogrow-input id="filenameInput" class="editable-title" placeholder="[[filename]]" value="[[filename]]" on-blur="updateFilename"></autogrow-input>
               <div class="flex" style="min-width: 8px"></div>
             </div>
 
-            <!-- TODO: Reconsider these status messages -->
+            <!-- TODO: Reconsider these status messages and tooltips -->
             <iron-pages attr-for-selected="status" selected="[[cloudStatus]]" fallback-selection="api-loading">
               <a status="api-loading" class="cloud-status">Loading Google Drive support…</a>
               <a status="unavailable" class="cloud-status">Google Drive is not available</a>
               <a status="unauthorized" class="cloud-status" on-tap="connectCloud">
                 <paper-item>Connect to Google Drive</paper-item>
+                <paper-tooltip>[[apiError]]</paper-tooltip>
               </a>
+
               <a status="authorizing" class="cloud-status">Connecting to Google Drive…</a>
               <a status="ready-to-sync" class="cloud-status" on-tap="startCloudIntegration">
                 <paper-item>Ready to save to Drive</paper-item>
@@ -105,6 +105,12 @@
               <a href="[[webViewLink]]" target="_blank" status="loading-file" class="cloud-status">
                 Loading file from Drive…
               </a>
+
+              <a status="load-error">
+                An error occurred with Google Drive
+                <paper-tootip>[[apiError]]</paper-tootip>
+              </a>
+
               <a href="[[webViewLink]]" target="_blank" status="loaded" class="cloud-status">
                 Last modified at [[lastCloudModifiedTime]]
               </a>
@@ -166,9 +172,9 @@
           <paper-button class="toast-action">View in Drive</paper-button>
         </a>
       </paper-toast>
-      <paper-toast id="apiErrorToast" text="[[apiError]]" opened="[[apiError]]"></paper-toast>
+      <paper-toast id="apiErrorToast" text="[[apiError]]" opened="[[apiError]]" duration="0"></paper-toast>
     </template>
 
-    <script src="scripts/app.js"></script>
+    <script src="scripts/app.min.js"></script>
   </body>
 </html>
