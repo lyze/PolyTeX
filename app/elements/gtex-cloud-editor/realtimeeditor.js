@@ -32,18 +32,33 @@ export class RealtimeEditor {
     this.collaborativeString = null;
   }
 
-  attachNewCursorElement(color) {
-    var div = document.createElement('div');
-    div.className = 'PolyTeX-cursor';
+  attachNewCursorElement(collaborator) {
+    var cursorDiv = document.createElement('div');
+    cursorDiv.className = 'PolyTeX-collaborator-cursor';
 
-    div.style.border = `1px solid ${color}`;
-    div.style.width = 0;
-    div.style.color = color;
-    div.style.display = 'inline-block';
+    var caretDiv = document.createElement('div');
+    caretDiv.className = 'PolyTeX-collaborator-cursor-caret';
+    caretDiv.style.borderColor = collaborator.color;
+    caretDiv.textContent = '\xA0'; // &nbsp;
 
-    div.textContent = '\xA0'; // &nbsp;
+    var nameDiv = document.createElement('div');
+    nameDiv.className = 'PolyTeX-collaborator-cursor-name';
+    nameDiv.textContent = collaborator.displayName;
+    nameDiv.style.backgroundColor = collaborator.color;
+    nameDiv.style.color = 'white';
 
-    return div;
+    caretDiv.addEventListener('mouseenter', _ => {
+      nameDiv.style.transition = 'opacity 0.20s ease-in-out';
+      nameDiv.style.opacity = 1;
+    });
+    caretDiv.addEventListener('mouseleave', _ => {
+      nameDiv.style.transition = 'opacity 0.20s ease-out 3s';
+      nameDiv.style.opacity = 0;
+    });
+
+    cursorDiv.appendChild(nameDiv);
+    cursorDiv.appendChild(caretDiv);
+    return cursorDiv;
   }
 
   addCssRule(rule) {
@@ -85,7 +100,8 @@ export class RealtimeEditor {
     }
     var c = this.collaboratorsBySession.get(id);
     if (!c.cursor) {
-      c.cursor = this.attachNewCursorElement(c.collaborator.color);
+      console.log('collaborator', c.collaborator);
+      c.cursor = this.attachNewCursorElement(c.collaborator);
     }
     if (c.bookmark) {
       c.bookmark.clear();
@@ -224,7 +240,4 @@ export class RealtimeEditor {
                          opt_realtimeLoadErrorFn, opt_refreshAuthErrorFn);
     });
   }
-
-
-
 }

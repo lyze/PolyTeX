@@ -8,6 +8,28 @@
 <dom-module id="gtex-cloud-editor">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.14.2/mode/stex/stex.js"></script>
   <template>
+    <style>
+      gtex-code-textarea ::content .PolyTeX-collaborator-cursor {
+        position: relative;
+        display: inline-block;
+      }
+
+      gtex-code-textarea ::content .PolyTeX-collaborator-cursor-caret {
+        border: 1px solid;
+        width: 0;
+      }
+
+      gtex-code-textarea ::content .PolyTeX-collaborator-cursor-name {
+        position: absolute;
+        top: -1em;
+        left: -2px;
+        white-space: nowrap;
+        font-size: 80%;
+        padding: 1px;
+        transition: opacity 0.20s ease-out 3s;
+        opacity: 0;
+      }
+    </style>
     <gtex-code-textarea id="editor" class="flex" editor-options="{{editorOptions}}" animated="true"></gtex-code-textarea>
     <google-client-loader id="driveApiLoader" name="drive" version="v3"></google-client-loader>
     <google-realtime-api id="realtimeApiLoader"></google-realtime-api>
